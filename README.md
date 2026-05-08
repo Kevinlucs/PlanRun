@@ -1,4 +1,4 @@
-# 🏃‍♂️ PLAN RUN (antigo PLANE BSB)
+# 🏃‍♂️ PLAN RUN
 
 O **PLAN RUN** é um Progressive Web App (PWA) avançado, criado para organizar, gerar e acompanhar planos de treino de corrida. Utilizando Inteligência Artificial (Google Gemini), o aplicativo gera planilhas de treinamento totalmente personalizadas para diferentes níveis de atletas e distâncias, desde os 5km até a Ultramaratona.
 
@@ -17,8 +17,8 @@ Como o sistema conta com integração de IA, é necessário configurar sua próp
 
 1. Clone o repositório:
 ```bash
-git clone https://github.com/Kevinlucs/planeBsb.git
-cd planeBsb
+git clone https://github.com/Kevinlucs/planeBsb.git planRun
+cd planRun
 ```
 
 2. Configure suas credenciais:
