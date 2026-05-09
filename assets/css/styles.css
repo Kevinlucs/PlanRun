@@ -8,6 +8,7 @@
 }
 
 :root {
+  --primary: #FC4C02;
   --bg: #000000;
   --bg-card: #1a1a1a;
   --bg-card-hover: #242424;
@@ -1717,6 +1718,35 @@ select.ai-input {
   outline: none;
   border-color: var(--primary);
   background: rgba(255, 255, 255, 0.08);
+}
+
+.password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.btn-toggle-password {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.btn-toggle-password:hover {
+  color: var(--text);
+}
+
+.btn-toggle-password svg {
+  width: 20px;
+  height: 20px;
 }
 
 .login-btn {

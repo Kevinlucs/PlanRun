@@ -859,6 +859,26 @@ document.getElementById('login-form').addEventListener('submit', (e) => {
   }
 });
 
+// ===== PASSWORD VISIBILITY =====
+const btnTogglePassword = document.getElementById('btn-toggle-password');
+if (btnTogglePassword) {
+  btnTogglePassword.addEventListener('click', () => {
+    const passwordInput = document.getElementById('login-password');
+    const iconEye = document.getElementById('icon-eye');
+    const iconEyeOff = document.getElementById('icon-eye-off');
+    
+    if (passwordInput.type === 'password') {
+      passwordInput.type = 'text';
+      iconEye.classList.add('hidden');
+      iconEyeOff.classList.remove('hidden');
+    } else {
+      passwordInput.type = 'password';
+      iconEye.classList.remove('hidden');
+      iconEyeOff.classList.add('hidden');
+    }
+  });
+}
+
 // ===== INIT =====
 window.addEventListener('load', () => {
   // Apply adopted AI plan if exists
