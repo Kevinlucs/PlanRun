@@ -195,11 +195,10 @@ IMPORTANTE:
 
     const prompt = buildPrompt(userData);
     const data = await callGeminiAPI(prompt);
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    const text = data.text;
 
     if (!text) {
-      const blockReason = data.candidates?.[0]?.finishReason;
-      console.error('Empty response. Finish reason:', blockReason, 'Full response:', data);
+      console.error('Empty response. Full response:', data);
       throw new Error('Resposta vazia da IA. Tente novamente.');
     }
 
