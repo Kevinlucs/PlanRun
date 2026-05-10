@@ -1,7 +1,6 @@
-const GEMINI_MODEL = 'gemini-1.5-flash';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 
 export default async function handler(req, res) {
-  // Only allow POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -19,18 +18,23 @@ export default async function handler(req, res) {
   }
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+    const url =
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
 
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({
-        contents: [{
-          parts: [{ text: prompt }]
-        }],
+        contents: [
+          {
+            parts: [{ text: prompt }]
+          }
+        ],
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 65536,
+          maxOutputTokens: 8192,
           responseMimeType: 'application/json'
         }
       })
@@ -44,8 +48,11 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json(data);
+
   } catch (error) {
     console.error('Server Error:', error);
-    return res.status(500).json({ error: 'Internal Server Error' });
+    return res.status(500).json({
+      error: 'Internal Server Error'
+    });
   }
 }
