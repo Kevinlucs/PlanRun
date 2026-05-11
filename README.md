@@ -112,3 +112,10 @@ Adaptive Training Engine acompanha treinos e ajusta o plano
 ```
 
 O banco de dados ainda não é obrigatório nesta etapa. O MVP continua usando `localStorage` por usuário.
+
+
+## Evolution & Responsive Layer
+
+Esta versão adiciona o histórico de evolução dentro da tela de estatísticas. O app passa a exibir aderência geral, km planejado x realizado, check-ins, ajustes aplicados e uma linha do tempo das semanas recentes.
+
+Também foi aplicado um ajuste responsivo para desktop: as telas agora usam largura máxima centralizada, evitando que o layout fique esticado em monitores grandes, sem prejudicar a experiência mobile.

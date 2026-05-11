@@ -486,12 +486,152 @@ function renderStats() {
     const done = getPhaseCompleted(p.key);
     const kmDone = Math.round(getPhaseWorkouts(p.key).reduce((s, w) => s + getWorkoutCompletedKm(w), 0));
     const kmTotal = getPhaseWorkouts(p.key).reduce((s, w) => s + w.km, 0);
+    const progress = total > 0 ? (done / total * 100) : 0;
     return `<div class="stats-phase-item">
       <h3>${p.name}</h3>
-      <div class="sp-info"><span>${done}/${total} treinos</span><span>${kmDone}/${kmTotal} km</span></div>
-      <div class="phase-progress"><div class="phase-progress-bar" style="width:${done / total * 100}%"></div></div>
+      <div class="sp-info"><span>${done}/${total} treinos</span><span>${kmDone}/${Math.round(kmTotal)} km</span></div>
+      <div class="phase-progress"><div class="phase-progress-bar" style="width:${progress}%"></div></div>
     </div>`;
   }).join('');
+
+  renderEvolutionHistory();
+}
+
+
+// ===== EVOLUTION HISTORY =====
+function getWeekEvolutionRows() {
+  if (!Array.isArray(allWorkouts) || allWorkouts.length === 0) return [];
+
+  const weekIndexes = [...new Set(allWorkouts.map(w => w.weekIndex))].sort((a, b) => a - b);
+
+  return weekIndexes.map(index => {
+    const summary = getWeekSummary(index);
+    const checkin = weeklyCheckins[getWeekKey(index)] || null;
+    const adjustment = adjustmentHistory.find(item => item.weekIndex === index) || checkin?.adjustment || null;
+    const plannedKm = Math.round(Number(summary.plannedKm || 0) * 10) / 10;
+    const completedKm = Math.round(Number(summary.completedKm || 0) * 10) / 10;
+    const adherence = plannedKm > 0 ? Math.round((completedKm / plannedKm) * 100) : 0;
+
+    return {
+      weekIndex: index,
+      week: summary.workouts[0]?.week || `S${index + 1}`,
+      phase: summary.workouts[0]?.phase || '-',
+      plannedKm,
+      completedKm,
+      adherence: Math.min(999, adherence),
+      resolved: summary.resolved,
+      total: summary.total,
+      averageEffort: summary.averageEffort || 0,
+      checkin,
+      adjustment
+    };
+  });
+}
+
+function getEvolutionTotals(rows) {
+  const plannedKm = rows.reduce((sum, row) => sum + Number(row.plannedKm || 0), 0);
+  const completedKm = rows.reduce((sum, row) => sum + Number(row.completedKm || 0), 0);
+  const checkedWeeks = rows.filter(row => row.checkin).length;
+  const adjustedWeeks = rows.filter(row => row.adjustment && row.adjustment.action && row.adjustment.action !== 'maintain').length;
+  const efforts = rows.map(row => Number(row.averageEffort || 0)).filter(Boolean);
+  const avgEffort = efforts.length ? Math.round((efforts.reduce((a, b) => a + b, 0) / efforts.length) * 10) / 10 : 0;
+
+  return {
+    plannedKm: Math.round(plannedKm * 10) / 10,
+    completedKm: Math.round(completedKm * 10) / 10,
+    checkedWeeks,
+    adjustedWeeks,
+    avgEffort,
+    adherence: plannedKm > 0 ? Math.round((completedKm / plannedKm) * 100) : 0
+  };
+}
+
+function getAdjustmentLabel(action) {
+  const labels = {
+    maintain: 'Mantido',
+    recovery: 'Recuperação',
+    reduce: 'Reduzido',
+    slight_increase: 'Aumento leve'
+  };
+
+  return labels[action] || 'Ajustado';
+}
+
+function renderEvolutionHistory() {
+  const el = document.getElementById('evolution-history');
+  if (!el) return;
+
+  const rows = getWeekEvolutionRows();
+
+  if (!rows.length) {
+    el.innerHTML = `
+      <div class="evolution-empty">
+        <strong>Nenhum plano ativo ainda.</strong>
+        <p>Gere uma planilha na aba IA Coach para acompanhar sua evolução semana a semana.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const totals = getEvolutionTotals(rows);
+  const recentRows = rows
+    .filter(row => row.resolved > 0 || row.checkin || row.adjustment)
+    .slice(-8)
+    .reverse();
+
+  el.innerHTML = `
+    <div class="evolution-summary-grid">
+      <div class="evolution-summary-card">
+        <span>Aderência geral</span>
+        <strong>${totals.adherence}%</strong>
+      </div>
+      <div class="evolution-summary-card">
+        <span>Km realizados</span>
+        <strong>${totals.completedKm}/${totals.plannedKm}</strong>
+      </div>
+      <div class="evolution-summary-card">
+        <span>Check-ins</span>
+        <strong>${totals.checkedWeeks}</strong>
+      </div>
+      <div class="evolution-summary-card">
+        <span>Ajustes aplicados</span>
+        <strong>${totals.adjustedWeeks}</strong>
+      </div>
+      <div class="evolution-summary-card">
+        <span>Esforço médio</span>
+        <strong>${totals.avgEffort || '-'}/10</strong>
+      </div>
+    </div>
+
+    <div class="evolution-timeline">
+      ${recentRows.length ? recentRows.map(row => `
+        <div class="evolution-row ${row.adjustment?.action || 'none'}">
+          <div class="evolution-week">
+            <strong>${escapeHTML(row.week)}</strong>
+            <span>${escapeHTML(row.phase)}</span>
+          </div>
+          <div class="evolution-main">
+            <div class="evolution-row-top">
+              <span>${row.completedKm}/${row.plannedKm} km</span>
+              <span>${row.adherence}%</span>
+            </div>
+            <div class="evolution-progress">
+              <div style="width:${Math.min(100, row.adherence)}%"></div>
+            </div>
+            <p>${row.checkin ? escapeHTML(row.checkin.resultMessage || 'Check-in registrado.') : 'Semana em acompanhamento.'}</p>
+          </div>
+          <div class="evolution-badge">
+            ${row.adjustment ? getAdjustmentLabel(row.adjustment.action) : row.checkin ? 'Check-in' : 'Em aberto'}
+          </div>
+        </div>
+      `).join('') : `
+        <div class="evolution-empty compact">
+          <strong>Sem histórico fechado ainda.</strong>
+          <p>Registre treinos e responda o check-in semanal para alimentar esta linha do tempo.</p>
+        </div>
+      `}
+    </div>
+  `;
 }
 
 // ===== NAVIGATION =====
