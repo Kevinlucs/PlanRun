@@ -119,3 +119,14 @@ O banco de dados ainda não é obrigatório nesta etapa. O MVP continua usando `
 Esta versão adiciona o histórico de evolução dentro da tela de estatísticas. O app passa a exibir aderência geral, km planejado x realizado, check-ins, ajustes aplicados e uma linha do tempo das semanas recentes.
 
 Também foi aplicado um ajuste responsivo para desktop: as telas agora usam largura máxima centralizada, evitando que o layout fique esticado em monitores grandes, sem prejudicar a experiência mobile.
+
+## Export & Backup Engine
+
+Esta versão adiciona a camada de exportação e backup local:
+
+- Exportação CSV da planilha ativa, incluindo semana, fase, data, tipo, treino, km, pace e status.
+- Backup JSON completo com plano, progresso, check-ins, ajustes adaptativos e customizações.
+- Importação de backup JSON para restaurar o plano e o histórico no navegador.
+- Mantém a estratégia sem banco de dados para o MVP fechado com poucos usuários.
+
+Após publicar, limpe o Service Worker/cache do navegador para carregar o `planrun-v12`.

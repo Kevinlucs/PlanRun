@@ -634,6 +634,244 @@ function renderEvolutionHistory() {
   `;
 }
 
+
+// ===== EXPORT & BACKUP ENGINE =====
+function sanitizeFileName(value) {
+  return String(value || 'planrun')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9-_]+/gi, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .toLowerCase() || 'planrun';
+}
+
+function getTodayFileStamp() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function downloadBlob(content, filename, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function setExportBackupStatus(message) {
+  const el = document.getElementById('export-backup-status');
+  if (el) el.textContent = message;
+}
+
+function csvValue(value) {
+  const text = String(value ?? '');
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function getExportPlanName() {
+  const plan = AICoach.loadPlan();
+  return plan?.planName || plan?.raceName || 'planrun';
+}
+
+function buildCSVFromWorkouts() {
+  const header = [
+    'Semana',
+    'Fase',
+    'Data',
+    'Dia',
+    'Tipo',
+    'Treino',
+    'Descricao',
+    'Km planejado',
+    'Pace planejado',
+    'Status',
+    'Km realizado',
+    'Pace realizado',
+    'Esforco',
+    'Observacoes'
+  ];
+
+  const rows = allWorkouts.map(w => {
+    const feedback = getWorkoutFeedback(w.id) || {};
+    const status = getWorkoutStatus(w.id);
+
+    return [
+      w.week,
+      w.phase,
+      w.dateStr,
+      w.day,
+      w.dayType,
+      w.title,
+      getDesc(w),
+      w.km,
+      getPace(w),
+      getWorkoutStatusLabel(status),
+      status === 'completed' || status === 'partial' ? getWorkoutCompletedKm(w) : 0,
+      feedback.completedPace || '',
+      feedback.effort || '',
+      feedback.notes || ''
+    ].map(csvValue).join(',');
+  });
+
+  return [header.map(csvValue).join(','), ...rows].join('\n');
+}
+
+function handleExportCSV() {
+  if (!allWorkouts.length) {
+    showSimpleModal('⚠️', 'Nenhum treino para exportar', 'Gere ou adote uma planilha antes de exportar em CSV.');
+    return;
+  }
+
+  const planName = sanitizeFileName(getExportPlanName());
+  const csv = '\ufeff' + buildCSVFromWorkouts();
+  const filename = `${planName}-treinos-${getTodayFileStamp()}.csv`;
+
+  downloadBlob(csv, filename, 'text/csv;charset=utf-8');
+  setExportBackupStatus(`CSV exportado: ${filename}`);
+}
+
+function buildBackupPayload() {
+  return {
+    app: 'PlanRun',
+    backupVersion: 1,
+    exportedAt: new Date().toISOString(),
+    user: getCurrentUserKey(),
+    isAdopted: typeof AICoach !== 'undefined' ? AICoach.isPlanAdopted() : false,
+    plan: typeof AICoach !== 'undefined' ? AICoach.loadPlan() : null,
+    completedWorkouts,
+    customizations,
+    workoutFeedback,
+    weeklyCheckins,
+    adjustmentHistory
+  };
+}
+
+function handleExportBackup() {
+  const payload = buildBackupPayload();
+
+  if (!payload.plan && !allWorkouts.length) {
+    showSimpleModal('⚠️', 'Nada para salvar ainda', 'Gere uma planilha ou registre treinos antes de criar um backup.');
+    return;
+  }
+
+  const planName = sanitizeFileName(payload.plan?.planName || 'planrun-backup');
+  const filename = `${planName}-backup-${getTodayFileStamp()}.json`;
+  const json = JSON.stringify(payload, null, 2);
+
+  downloadBlob(json, filename, 'application/json;charset=utf-8');
+  setExportBackupStatus(`Backup exportado: ${filename}`);
+}
+
+function handleImportBackupClick() {
+  const input = document.getElementById('backup-import-input');
+  if (!input) return;
+
+  input.value = '';
+  input.click();
+}
+
+function validateBackupPayload(payload) {
+  if (!payload || typeof payload !== 'object') return 'Arquivo inválido.';
+  if (payload.app !== 'PlanRun') return 'Este arquivo não parece ser um backup do PlanRun.';
+  if (!payload.plan && !payload.workoutFeedback && !payload.weeklyCheckins) return 'Backup sem dados úteis para restaurar.';
+
+  return null;
+}
+
+function applyBackupPayload(payload) {
+  if (payload.plan) {
+    localStorage.setItem(getAIPlanStorageKey(), JSON.stringify(payload.plan));
+    localStorage.setItem(`${getCurrentUserKey()}_planebsb_ai_adopted`, payload.isAdopted === false ? 'false' : 'true');
+
+    if (payload.isAdopted === false) {
+      localStorage.removeItem(`${getCurrentUserKey()}_planebsb_ai_adopted`);
+    }
+  }
+
+  completedWorkouts = payload.completedWorkouts || {};
+  customizations = payload.customizations || {};
+  workoutFeedback = payload.workoutFeedback || {};
+  weeklyCheckins = payload.weeklyCheckins || {};
+  adjustmentHistory = Array.isArray(payload.adjustmentHistory) ? payload.adjustmentHistory : [];
+
+  saveCompleted();
+  saveCustom();
+  saveWorkoutFeedback();
+  saveWeeklyCheckins();
+  saveAdjustmentHistory();
+
+  reloadUserAdaptiveState();
+
+  if (payload.plan && payload.isAdopted !== false && typeof AICoach !== 'undefined') {
+    applyAdoptedPlan();
+  }
+
+  renderHome();
+  renderPhases();
+  renderStats();
+  updateAdoptedBanner?.();
+}
+
+function handleImportBackupFile(file) {
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = () => {
+    let payload;
+
+    try {
+      payload = JSON.parse(reader.result);
+    } catch (error) {
+      showSimpleModal('⛔', 'Erro ao importar', 'Não foi possível ler o JSON do backup.');
+      return;
+    }
+
+    const validationError = validateBackupPayload(payload);
+    if (validationError) {
+      showSimpleModal('⛔', 'Backup inválido', validationError);
+      return;
+    }
+
+    document.getElementById('modal-icon').textContent = '📥';
+    document.getElementById('modal-title').textContent = 'Importar backup?';
+    document.getElementById('modal-message').innerHTML = `
+      <p>Isso substituirá o plano, progresso, check-ins e ajustes salvos neste navegador.</p>
+      <p><strong>${escapeHTML(payload.plan?.planName || 'Backup PlanRun')}</strong></p>
+      <p>${payload.exportedAt ? `Exportado em ${new Date(payload.exportedAt).toLocaleString('pt-BR')}` : ''}</p>
+    `;
+    document.getElementById('modal-overlay').classList.remove('hidden');
+    document.getElementById('modal-cancel').classList.remove('hidden');
+    document.getElementById('modal-confirm').onclick = () => {
+      applyBackupPayload(payload);
+      document.getElementById('modal-overlay').classList.add('hidden');
+      setExportBackupStatus('Backup importado com sucesso.');
+      showSimpleModal('✅', 'Backup restaurado', 'Seu plano e histórico foram restaurados neste navegador.');
+    };
+    document.getElementById('modal-cancel').onclick = () => {
+      document.getElementById('modal-overlay').classList.add('hidden');
+    };
+  };
+
+  reader.readAsText(file, 'utf-8');
+}
+
+function showSimpleModal(icon, title, message) {
+  document.getElementById('modal-icon').textContent = icon;
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-message').textContent = message;
+  document.getElementById('modal-overlay').classList.remove('hidden');
+  document.getElementById('modal-cancel').classList.add('hidden');
+  document.getElementById('modal-confirm').onclick = () => {
+    document.getElementById('modal-overlay').classList.add('hidden');
+    document.getElementById('modal-cancel').classList.remove('hidden');
+  };
+}
+
 // ===== NAVIGATION =====
 function showPage(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1570,6 +1808,10 @@ document.querySelectorAll('.nav-item').forEach(btn => {
 
 // AI Coach: update weeks info when date changes
 document.getElementById('ai-race-date')?.addEventListener('change', updateWeeksInfo);
+
+document.getElementById('backup-import-input')?.addEventListener('change', (event) => {
+  handleImportBackupFile(event.target.files?.[0]);
+});
 
 document.querySelectorAll('.phase-card').forEach(card => {
   card.addEventListener('click', () => openPhase(card.dataset.phase));

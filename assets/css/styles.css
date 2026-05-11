@@ -2744,3 +2744,127 @@ select.ai-input {
     margin-top: 22px;
   }
 }
+
+/* ===== EXPORT & BACKUP ENGINE ===== */
+.export-backup-card {
+  padding: 20px;
+  border-radius: 22px;
+  background:
+    linear-gradient(135deg, rgba(252, 76, 2, 0.10), rgba(255, 255, 255, 0.035)),
+    var(--bg-card);
+  border: 1px solid rgba(252, 76, 2, 0.22);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+}
+
+.export-backup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.export-backup-eyebrow {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--primary);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.export-backup-header h3 {
+  margin: 0 0 6px;
+  font-size: 1.15rem;
+  line-height: 1.15;
+}
+
+.export-backup-header p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  font-size: 0.92rem;
+}
+
+.export-backup-badge {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(252, 76, 2, 0.16);
+  color: var(--primary);
+  border: 1px solid rgba(252, 76, 2, 0.28);
+  font-weight: 900;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.export-backup-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.export-action-card {
+  width: 100%;
+  text-align: left;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: var(--text);
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.export-action-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(252, 76, 2, 0.42);
+  background: rgba(252, 76, 2, 0.08);
+}
+
+.export-action-card span {
+  display: block;
+  font-size: 1.5rem;
+  margin-bottom: 10px;
+}
+
+.export-action-card strong {
+  display: block;
+  font-size: 1rem;
+  margin-bottom: 5px;
+}
+
+.export-action-card small {
+  display: block;
+  color: var(--text-secondary);
+  line-height: 1.35;
+  font-size: 0.82rem;
+}
+
+.export-backup-status {
+  margin: 14px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+@media (min-width: 768px) {
+  .export-backup-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .export-backup-card {
+    padding: 22px;
+  }
+}
+
+@media (max-width: 519px) {
+  .export-backup-header {
+    flex-direction: column;
+  }
+
+  .export-backup-badge {
+    width: max-content;
+  }
+}

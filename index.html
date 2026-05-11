@@ -251,6 +251,37 @@
                 <div id="evolution-history" class="evolution-history">
                     <!-- Populated by JS -->
                 </div>
+
+                <h2 class="section-title" style="margin-top: 1.5rem;">Exportação & Backup</h2>
+                <div class="export-backup-card">
+                    <div class="export-backup-header">
+                        <div>
+                            <span class="export-backup-eyebrow">Export & Backup Engine</span>
+                            <h3>Guardar e compartilhar plano</h3>
+                            <p>Exporte a planilha em CSV ou salve um backup completo para restaurar depois.</p>
+                        </div>
+                        <div class="export-backup-badge">Local</div>
+                    </div>
+                    <div class="export-backup-grid">
+                        <button type="button" class="export-action-card" onclick="handleExportCSV()">
+                            <span>📊</span>
+                            <strong>Exportar CSV</strong>
+                            <small>Planilha com semanas, datas, km, pace e status.</small>
+                        </button>
+                        <button type="button" class="export-action-card" onclick="handleExportBackup()">
+                            <span>🧳</span>
+                            <strong>Backup JSON</strong>
+                            <small>Plano, check-ins, ajustes e progresso completo.</small>
+                        </button>
+                        <button type="button" class="export-action-card" onclick="handleImportBackupClick()">
+                            <span>📥</span>
+                            <strong>Importar backup</strong>
+                            <small>Restaure um arquivo JSON exportado pelo PlanRun.</small>
+                        </button>
+                    </div>
+                    <input type="file" id="backup-import-input" accept="application/json,.json" class="hidden">
+                    <p id="export-backup-status" class="export-backup-status">Nenhuma ação realizada nesta sessão.</p>
+                </div>
             </div>
         </main>
 
