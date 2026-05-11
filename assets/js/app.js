@@ -41,42 +41,135 @@ WEEKS_DATA.forEach((w, i) => {
 // ===== STATE =====
 let completedWorkouts = JSON.parse(localStorage.getItem('planebsb_completed') || '{}');
 let customizations = JSON.parse(localStorage.getItem('planebsb_custom') || '{}');
+let workoutFeedback = JSON.parse(localStorage.getItem(getWorkoutFeedbackKey()) || '{}');
+let weeklyCheckins = JSON.parse(localStorage.getItem(getWeeklyCheckinsKey()) || '{}');
+let adjustmentHistory = JSON.parse(localStorage.getItem(getAdjustmentHistoryKey()) || '[]');
 let currentPage = 'home';
 let currentPhase = null;
 let currentWorkout = null;
 let pageHistory = [];
 
+function getCurrentUserKey() {
+  return localStorage.getItem('planebsb_current_user') || 'guest';
+}
+
+function getWorkoutFeedbackKey() {
+  return `${getCurrentUserKey()}_planebsb_workout_feedback`;
+}
+
+function getWeeklyCheckinsKey() {
+  return `${getCurrentUserKey()}_planebsb_weekly_checkins`;
+}
+
+function getAdjustmentHistoryKey() {
+  return `${getCurrentUserKey()}_planebsb_adjustment_history`;
+}
+
+function getAIPlanStorageKey() {
+  return `${getCurrentUserKey()}_planebsb_ai_plan`;
+}
+
 function saveCompleted() { localStorage.setItem('planebsb_completed', JSON.stringify(completedWorkouts)); }
 function saveCustom() { localStorage.setItem('planebsb_custom', JSON.stringify(customizations)); }
-function isCompleted(id) { return !!completedWorkouts[id]; }
-function toggleComplete(id) {
-  if (completedWorkouts[id]) delete completedWorkouts[id];
-  else completedWorkouts[id] = new Date().toISOString();
+function saveWorkoutFeedback() { localStorage.setItem(getWorkoutFeedbackKey(), JSON.stringify(workoutFeedback)); }
+function saveWeeklyCheckins() { localStorage.setItem(getWeeklyCheckinsKey(), JSON.stringify(weeklyCheckins)); }
+function saveAdjustmentHistory() { localStorage.setItem(getAdjustmentHistoryKey(), JSON.stringify(adjustmentHistory)); }
+
+function reloadUserAdaptiveState() {
+  workoutFeedback = JSON.parse(localStorage.getItem(getWorkoutFeedbackKey()) || '{}');
+  weeklyCheckins = JSON.parse(localStorage.getItem(getWeeklyCheckinsKey()) || '{}');
+  adjustmentHistory = JSON.parse(localStorage.getItem(getAdjustmentHistoryKey()) || '[]');
+}
+
+function getWorkoutFeedback(id) {
+  return workoutFeedback[id] || null;
+}
+
+function getWorkoutStatus(id) {
+  const feedback = getWorkoutFeedback(id);
+  if (feedback?.status) return feedback.status;
+  if (completedWorkouts[id]) return 'completed';
+  return 'pending';
+}
+
+function isCompleted(id) {
+  return getWorkoutStatus(id) === 'completed';
+}
+
+function isWorkoutResolved(id) {
+  return ['completed', 'partial', 'skipped'].includes(getWorkoutStatus(id));
+}
+
+function setWorkoutStatus(id, status, extra = {}) {
+  const workout = allWorkouts.find(w => w.id === id);
+  const now = new Date().toISOString();
+
+  if (status === 'pending') {
+    delete workoutFeedback[id];
+    delete completedWorkouts[id];
+  } else {
+    workoutFeedback[id] = {
+      ...(workoutFeedback[id] || {}),
+      status,
+      updatedAt: now,
+      workoutId: id,
+      week: workout?.week,
+      weekIndex: workout?.weekIndex,
+      plannedKm: Number(workout?.km || 0),
+      plannedPace: workout?.pace || '-',
+      ...extra
+    };
+
+    if (status === 'completed') completedWorkouts[id] = now;
+    else delete completedWorkouts[id];
+  }
+
+  saveWorkoutFeedback();
   saveCompleted();
 }
+
+function toggleComplete(id) {
+  if (isCompleted(id)) setWorkoutStatus(id, 'pending');
+  else setWorkoutStatus(id, 'completed', { completedAt: new Date().toISOString() });
+}
+
 function clearProgress() {
   completedWorkouts = {};
   customizations = {};
+  workoutFeedback = {};
+  weeklyCheckins = {};
+  adjustmentHistory = [];
   saveCompleted();
   saveCustom();
+  saveWorkoutFeedback();
+  saveWeeklyCheckins();
+  saveAdjustmentHistory();
 }
 function getDesc(w) { return (customizations[w.id] && customizations[w.id].desc) || w.desc; }
 function getPace(w) { return (customizations[w.id] && customizations[w.id].pace) || w.pace; }
 
-// S1 Terça já concluído
-if (!completedWorkouts['S1-ter']) {
-  completedWorkouts['S1-ter'] = '2026-05-05T00:00:00.000Z';
-  saveCompleted();
-}
+// Progresso inicial vazio: cada usuário marca seus próprios treinos.
 
 // ===== STATS HELPERS =====
+function getWorkoutCompletedKm(w) {
+  const feedback = getWorkoutFeedback(w.id);
+  const status = getWorkoutStatus(w.id);
+
+  if (status === 'completed') return Number(feedback?.completedKm || w.km || 0);
+  if (status === 'partial') return Number(feedback?.completedKm || 0);
+
+  return 0;
+}
+
 function getTotalKmDone() {
-  return allWorkouts.filter(w => isCompleted(w.id)).reduce((s, w) => s + w.km, 0);
+  return Math.round(allWorkouts.reduce((s, w) => s + getWorkoutCompletedKm(w), 0));
 }
 function getTotalKmPlan() {
   return allWorkouts.reduce((s, w) => s + w.km, 0);
 }
 function getCompletedCount() { return allWorkouts.filter(w => isCompleted(w.id)).length; }
+function getPartialCount() { return allWorkouts.filter(w => getWorkoutStatus(w.id) === 'partial').length; }
+function getSkippedCount() { return allWorkouts.filter(w => getWorkoutStatus(w.id) === 'skipped').length; }
 function getDaysToRace() {
   const now = new Date(); now.setHours(0, 0, 0, 0);
   return Math.max(0, Math.ceil((RACE_DATE - now) / 86400000));
@@ -121,21 +214,48 @@ function phaseColor(phase) {
   return '#FF8C42';
 }
 
+function getWorkoutStatusLabel(status) {
+  const labels = {
+    pending: 'Pendente',
+    completed: 'Concluído',
+    partial: 'Parcial',
+    skipped: 'Pulou'
+  };
+
+  return labels[status] || 'Pendente';
+}
+
+function getWorkoutStatusIcon(status) {
+  const icons = {
+    pending: '⏳',
+    completed: '✅',
+    partial: '🟡',
+    skipped: '⏭️'
+  };
+
+  return icons[status] || '⏳';
+}
+
 function renderWorkoutRow(w, showPhase) {
   const d = w.date;
   const dayNum = d.getDate().toString().padStart(2, '0');
   const months = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
   const mon = months[d.getMonth()];
-  const done = isCompleted(w.id);
+  const status = getWorkoutStatus(w.id);
+  const done = status === 'completed';
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const isToday = fmt(d) === fmt(today);
-  return `<div class="workout-row${done ? ' completed' : ''}${isToday ? ' today' : ''}" data-id="${w.id}" onclick="openWorkout('${w.id}')">
+  const completedKm = getWorkoutCompletedKm(w);
+  const kmText = status === 'partial' ? `${completedKm}/${w.km}km` : `${w.km}km`;
+
+  return `<div class="workout-row status-${status}${done ? ' completed' : ''}${isToday ? ' today' : ''}" data-id="${w.id}" onclick="openWorkout('${w.id}')">
     <div class="row-day"><span class="row-day-num">${dayNum}</span>${mon}</div>
     <div class="row-info">
       <div class="row-title">${w.title}</div>
       <div class="row-sub">${showPhase ? w.phase + ' • ' : ''}${w.day} - ${w.dayType}${w.off ? ' (Off)' : ''}</div>
+      <div class="row-status-chip ${status}">${getWorkoutStatusIcon(status)} ${getWorkoutStatusLabel(status)}</div>
     </div>
-    <div class="row-km">${w.km}km</div>
+    <div class="row-km">${kmText}</div>
   </div>`;
 }
 
@@ -185,6 +305,7 @@ function renderHome() {
   const weekWks = getCurrentWeekWorkouts();
   const weeklyEl = document.getElementById('weekly-workouts');
   weeklyEl.innerHTML = weekWks.map(w => renderWorkoutRow(w, false)).join('');
+  renderWeeklyCheckInCard(weekWks);
 
   // Header stat
   document.getElementById('total-km').textContent = getTotalKmDone() + ' km';
@@ -294,10 +415,34 @@ function renderWorkoutDetail(id) {
       </div>
       `}
     </div>` : ''}
-    <button class="btn-complete ${done ? 'done' : 'not-done'}" id="btn-toggle-complete" onclick="handleToggleComplete('${w.id}')">
-      ${done ? '✅ TREINO CONCLUÍDO' : '🏃 MARCAR COMO CONCLUÍDO'}
-    </button>
-    ${done ? `<button class="btn-undo" onclick="handleUndo('${w.id}')">Desmarcar conclusão</button>` : ''}`;
+    ${renderWorkoutActionButtons(w)}`;
+}
+
+function renderWorkoutActionButtons(w) {
+  const status = getWorkoutStatus(w.id);
+  const feedback = getWorkoutFeedback(w.id);
+  const effortText = feedback?.effort ? `<span>Esforço: ${feedback.effort}/10</span>` : '';
+  const notesText = feedback?.notes ? `<p>${escapeHTML(feedback.notes)}</p>` : '';
+
+  if (status !== 'pending') {
+    return `
+      <div class="workout-status-summary ${status}">
+        <strong>${getWorkoutStatusIcon(status)} ${getWorkoutStatusLabel(status)}</strong>
+        <span>${status === 'partial' ? `${Number(feedback?.completedKm || 0)} km realizados` : status === 'completed' ? `${Number(feedback?.completedKm || w.km)} km realizados` : 'Treino não realizado'}</span>
+        ${effortText}
+        ${notesText}
+      </div>
+      <button class="btn-undo" onclick="handleUndo('${w.id}')">Alterar status</button>
+    `;
+  }
+
+  return `
+    <div class="workout-action-grid">
+      <button class="btn-complete not-done" onclick="handleToggleComplete('${w.id}')">✅ Concluir treino</button>
+      <button class="btn-status partial" onclick="handleMarkPartial('${w.id}')">🟡 Fiz parcial</button>
+      <button class="btn-status skipped" onclick="handleSkipWorkout('${w.id}')">⏭️ Pulei</button>
+    </div>
+  `;
 }
 
 function renderStats() {
@@ -339,7 +484,7 @@ function renderStats() {
   el.innerHTML = phases.map(p => {
     const total = getPhaseWorkouts(p.key).length;
     const done = getPhaseCompleted(p.key);
-    const kmDone = getPhaseWorkouts(p.key).filter(w => isCompleted(w.id)).reduce((s, w) => s + w.km, 0);
+    const kmDone = Math.round(getPhaseWorkouts(p.key).reduce((s, w) => s + getWorkoutCompletedKm(w), 0));
     const kmTotal = getPhaseWorkouts(p.key).reduce((s, w) => s + w.km, 0);
     return `<div class="stats-phase-item">
       <h3>${p.name}</h3>
@@ -893,40 +1038,331 @@ function openWorkout(id) {
 }
 
 // ===== ACTIONS =====
-function handleToggleComplete(id) {
-  if (isCompleted(id)) return;
+function openWorkoutFeedbackModal(id, status) {
   const w = allWorkouts.find(x => x.id === id);
-  document.getElementById('modal-icon').textContent = '🎉';
-  document.getElementById('modal-title').textContent = 'Treino Concluído!';
-  document.getElementById('modal-message').textContent = `Marcar "${w.title}" (${w.km}km) como concluído?`;
+  if (!w) return;
+
+  const isComplete = status === 'completed';
+  const isPartial = status === 'partial';
+  const title = isComplete ? 'Concluir treino' : isPartial ? 'Registrar treino parcial' : 'Pular treino';
+  const icon = isComplete ? '✅' : isPartial ? '🟡' : '⏭️';
+  const defaultKm = isComplete ? Number(w.km || 0) : isPartial ? Math.max(1, Math.round(Number(w.km || 0) / 2)) : 0;
+
+  document.getElementById('modal-icon').textContent = icon;
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-message').innerHTML = `
+    <div class="feedback-form">
+      <p><strong>${escapeHTML(w.title)}</strong> • ${w.km} km planejados</p>
+      ${status !== 'skipped' ? `
+        <label>Km realizado</label>
+        <input type="number" class="edit-field" id="feedback-km" value="${defaultKm}" min="0" step="0.1">
+        <label>Pace realizado <span>(opcional)</span></label>
+        <input type="text" class="edit-field" id="feedback-pace" placeholder="Ex: 6:20/km">
+      ` : ''}
+      <label>Esforço percebido <span>(1 leve • 10 máximo)</span></label>
+      <input type="range" id="feedback-effort" min="1" max="10" value="${status === 'skipped' ? 7 : 6}" oninput="document.getElementById('feedback-effort-value').textContent=this.value">
+      <div class="range-value">Esforço: <strong id="feedback-effort-value">${status === 'skipped' ? 7 : 6}</strong>/10</div>
+      <label>Observação <span>(opcional)</span></label>
+      <textarea class="edit-field" id="feedback-notes" rows="3" placeholder="Como foi o treino? Dor, cansaço, clima, etc."></textarea>
+    </div>
+  `;
+
   document.getElementById('modal-overlay').classList.remove('hidden');
   document.getElementById('modal-confirm').onclick = () => {
-    toggleComplete(id);
+    const completedKm = status === 'skipped' ? 0 : Number(document.getElementById('feedback-km')?.value || 0);
+    const completedPace = document.getElementById('feedback-pace')?.value?.trim() || '';
+    const effort = Number(document.getElementById('feedback-effort')?.value || 0);
+    const notes = document.getElementById('feedback-notes')?.value?.trim() || '';
+
+    setWorkoutStatus(id, status, {
+      completedAt: new Date().toISOString(),
+      completedKm,
+      completedPace,
+      effort,
+      notes
+    });
+
     document.getElementById('modal-overlay').classList.add('hidden');
     renderWorkoutDetail(id);
     renderHome();
     renderPhases();
+    renderStats();
   };
   document.getElementById('modal-cancel').onclick = () => {
     document.getElementById('modal-overlay').classList.add('hidden');
   };
 }
 
+function handleToggleComplete(id) {
+  openWorkoutFeedbackModal(id, 'completed');
+}
+
+function handleMarkPartial(id) {
+  openWorkoutFeedbackModal(id, 'partial');
+}
+
+function handleSkipWorkout(id) {
+  openWorkoutFeedbackModal(id, 'skipped');
+}
+
 function handleUndo(id) {
   document.getElementById('modal-icon').textContent = '🔄';
-  document.getElementById('modal-title').textContent = 'Desmarcar Treino?';
-  document.getElementById('modal-message').textContent = 'Tem certeza que quer desmarcar este treino?';
+  document.getElementById('modal-title').textContent = 'Alterar Status?';
+  document.getElementById('modal-message').textContent = 'O registro deste treino será removido e ele voltará para pendente.';
   document.getElementById('modal-overlay').classList.remove('hidden');
   document.getElementById('modal-confirm').onclick = () => {
-    toggleComplete(id);
+    setWorkoutStatus(id, 'pending');
     document.getElementById('modal-overlay').classList.add('hidden');
     renderWorkoutDetail(id);
     renderHome();
     renderPhases();
+    renderStats();
   };
   document.getElementById('modal-cancel').onclick = () => {
     document.getElementById('modal-overlay').classList.add('hidden');
   };
+}
+
+// ===== WEEKLY CHECK-IN / ADAPTIVE TRAINING ENGINE =====
+function getWeekKey(weekIndex) {
+  return `week_${weekIndex}`;
+}
+
+function getWeekSummary(weekIndex) {
+  const workouts = allWorkouts.filter(w => w.weekIndex === weekIndex);
+  const plannedKm = workouts.reduce((sum, w) => sum + Number(w.km || 0), 0);
+  const completedKm = workouts.reduce((sum, w) => sum + getWorkoutCompletedKm(w), 0);
+  const completed = workouts.filter(w => getWorkoutStatus(w.id) === 'completed').length;
+  const partial = workouts.filter(w => getWorkoutStatus(w.id) === 'partial').length;
+  const skipped = workouts.filter(w => getWorkoutStatus(w.id) === 'skipped').length;
+  const resolved = workouts.filter(w => isWorkoutResolved(w.id)).length;
+  const efforts = workouts
+    .map(w => Number(getWorkoutFeedback(w.id)?.effort || 0))
+    .filter(Boolean);
+  const averageEffort = efforts.length ? Math.round((efforts.reduce((a, b) => a + b, 0) / efforts.length) * 10) / 10 : 0;
+
+  return {
+    workouts,
+    plannedKm,
+    completedKm: Math.round(completedKm * 10) / 10,
+    completed,
+    partial,
+    skipped,
+    resolved,
+    total: workouts.length,
+    averageEffort,
+    completionRate: workouts.length ? (completed + partial * 0.5) / workouts.length : 0
+  };
+}
+
+function getCheckinCandidateWeek() {
+  if (!allWorkouts.length) return null;
+
+  const current = getCurrentWeekWorkouts()[0]?.weekIndex ?? 0;
+  const candidates = [...new Set(allWorkouts.map(w => w.weekIndex))]
+    .filter(index => !weeklyCheckins[getWeekKey(index)])
+    .map(index => ({ index, summary: getWeekSummary(index) }))
+    .filter(item => item.summary.total && item.summary.resolved === item.summary.total);
+
+  if (candidates.length) return candidates[0].index;
+
+  return current;
+}
+
+function renderWeeklyCheckInCard(currentWeekWorkouts) {
+  const el = document.getElementById('weekly-checkin-card');
+  if (!el) return;
+
+  if (!allWorkouts.length) {
+    el.classList.add('hidden');
+    return;
+  }
+
+  const weekIndex = getCheckinCandidateWeek();
+  if (weekIndex === null || weekIndex === undefined) {
+    el.classList.add('hidden');
+    return;
+  }
+
+  const summary = getWeekSummary(weekIndex);
+  const weekLabel = summary.workouts[0]?.week || `S${weekIndex + 1}`;
+  const checkin = weeklyCheckins[getWeekKey(weekIndex)];
+  const canCheckin = summary.total > 0 && summary.resolved === summary.total;
+
+  el.classList.remove('hidden');
+  el.innerHTML = `
+    <div class="checkin-header">
+      <div>
+        <span class="checkin-eyebrow">Adaptive Training</span>
+        <h3>Check-in da ${weekLabel}</h3>
+      </div>
+      <span class="checkin-pill ${checkin ? 'done' : canCheckin ? 'ready' : 'locked'}">${checkin ? 'Feito' : canCheckin ? 'Liberado' : 'Aguardando treinos'}</span>
+    </div>
+    <div class="checkin-grid">
+      <div><span>Treinos</span><strong>${summary.resolved}/${summary.total}</strong></div>
+      <div><span>Km realizado</span><strong>${summary.completedKm}/${Math.round(summary.plannedKm)} km</strong></div>
+      <div><span>Esforço médio</span><strong>${summary.averageEffort || '-'}/10</strong></div>
+    </div>
+    ${checkin ? `
+      <div class="checkin-result">
+        <strong>${escapeHTML(checkin.resultTitle || 'Plano revisado')}</strong>
+        <p>${escapeHTML(checkin.resultMessage || 'Check-in registrado.')}</p>
+      </div>
+    ` : `
+      <p class="checkin-hint">Finalize todos os treinos da semana como concluído, parcial ou pulado para liberar o check-in.</p>
+      <button class="btn-checkin" ${canCheckin ? '' : 'disabled'} onclick="openWeeklyCheckin(${weekIndex})">Responder check-in</button>
+    `}
+  `;
+}
+
+function openWeeklyCheckin(weekIndex) {
+  const summary = getWeekSummary(weekIndex);
+  const weekLabel = summary.workouts[0]?.week || `S${weekIndex + 1}`;
+
+  document.getElementById('modal-icon').textContent = '🧠';
+  document.getElementById('modal-title').textContent = `Check-in ${weekLabel}`;
+  document.getElementById('modal-message').innerHTML = `
+    <div class="feedback-form">
+      <p>${summary.resolved}/${summary.total} treinos registrados • ${summary.completedKm}/${Math.round(summary.plannedKm)} km</p>
+      <label>Como a semana pareceu?</label>
+      <select class="edit-field" id="checkin-feeling">
+        <option value="leve">Leve</option>
+        <option value="normal" selected>Normal</option>
+        <option value="pesado">Pesado</option>
+        <option value="muito_pesado">Muito pesado</option>
+      </select>
+      <label>Esforço geral da semana</label>
+      <input type="range" id="checkin-effort" min="1" max="10" value="${summary.averageEffort || 6}" oninput="document.getElementById('checkin-effort-value').textContent=this.value">
+      <div class="range-value">Esforço: <strong id="checkin-effort-value">${summary.averageEffort || 6}</strong>/10</div>
+      <label>Sentiu dor/incômodo?</label>
+      <select class="edit-field" id="checkin-pain">
+        <option value="no" selected>Não</option>
+        <option value="yes">Sim</option>
+      </select>
+      <label>Observações</label>
+      <textarea class="edit-field" id="checkin-notes" rows="3" placeholder="Sono, cansaço, dores, rotina, dificuldade dos treinos..."></textarea>
+    </div>
+  `;
+
+  document.getElementById('modal-overlay').classList.remove('hidden');
+  document.getElementById('modal-confirm').onclick = () => {
+    const feedback = {
+      feeling: document.getElementById('checkin-feeling')?.value || 'normal',
+      effort: Number(document.getElementById('checkin-effort')?.value || summary.averageEffort || 6),
+      pain: document.getElementById('checkin-pain')?.value === 'yes',
+      notes: document.getElementById('checkin-notes')?.value?.trim() || '',
+      summary,
+      createdAt: new Date().toISOString()
+    };
+
+    const adjustment = runPlanAdjustmentEngine(weekIndex, feedback);
+    weeklyCheckins[getWeekKey(weekIndex)] = {
+      ...feedback,
+      adjustment,
+      resultTitle: adjustment.title,
+      resultMessage: adjustment.message
+    };
+
+    saveWeeklyCheckins();
+    document.getElementById('modal-overlay').classList.add('hidden');
+    renderHome();
+    renderStats();
+  };
+  document.getElementById('modal-cancel').onclick = () => {
+    document.getElementById('modal-overlay').classList.add('hidden');
+  };
+}
+
+function runPlanAdjustmentEngine(weekIndex, feedback) {
+  const summary = feedback.summary;
+  let factor = 1;
+  let action = 'maintain';
+  let weeksToAdjust = 1;
+  let reason = 'Semana dentro do esperado. O plano foi mantido.';
+
+  if (feedback.pain) {
+    factor = 0.75;
+    action = 'recovery';
+    weeksToAdjust = 1;
+    reason = 'Dor/incômodo reportado. Próxima semana reduzida e tratada como recuperação.';
+  } else if (summary.completionRate < 0.6) {
+    factor = 0.85;
+    action = 'reduce';
+    reason = 'Baixa aderência na semana. Próxima semana reduzida em 15%.';
+  } else if (feedback.effort >= 9 || feedback.feeling === 'muito_pesado') {
+    factor = 0.9;
+    action = 'reduce';
+    reason = 'Esforço alto. Próxima semana reduzida em 10%.';
+  } else if (summary.completionRate >= 1 && feedback.effort <= 5 && feedback.feeling === 'leve') {
+    factor = 1.03;
+    action = 'slight_increase';
+    reason = 'Semana leve e completa. Próxima semana recebeu aumento conservador de 3%.';
+  }
+
+  const applied = applyAdjustmentToStoredPlan(weekIndex, factor, action, weeksToAdjust);
+  const adjustment = {
+    weekIndex,
+    week: summary.workouts[0]?.week || `S${weekIndex + 1}`,
+    action,
+    factor,
+    weeksToAdjust,
+    applied,
+    reason,
+    createdAt: new Date().toISOString(),
+    title: action === 'maintain' ? 'Plano mantido' : action === 'recovery' ? 'Semana de recuperação aplicada' : 'Plano ajustado',
+    message: applied ? reason : 'Check-in salvo. Nenhuma semana futura disponível para ajuste.'
+  };
+
+  adjustmentHistory.push(adjustment);
+  saveAdjustmentHistory();
+
+  return adjustment;
+}
+
+function applyAdjustmentToStoredPlan(weekIndex, factor, action, weeksToAdjust) {
+  if (factor === 1 && action === 'maintain') return false;
+
+  const plan = AICoach.loadPlan();
+  if (!plan || !Array.isArray(plan.weeks)) return false;
+
+  const start = weekIndex + 1;
+  const end = Math.min(plan.weeks.length - 1, start + weeksToAdjust - 1);
+  if (start > end) return false;
+
+  for (let i = start; i <= end; i++) {
+    const week = plan.weeks[i];
+    if (!week || !Array.isArray(week.workouts)) continue;
+
+    if (action === 'recovery') {
+      week.off = true;
+      week.phase = week.phase === 'Polimento' ? week.phase : 'Base';
+    }
+
+    week.workouts = week.workouts.map((workout, workoutIndex) => {
+      const isRace = i === plan.weeks.length - 1 && workoutIndex === week.workouts.length - 1;
+      if (isRace) return workout;
+
+      const originalKm = Number(workout.km || 0);
+      const nextKm = Math.max(1, Math.round(originalKm * factor));
+      const suffix = action === 'recovery' ? 'Carga reduzida após check-in.' : 'Ajustado após check-in semanal.';
+
+      return {
+        ...workout,
+        km: nextKm,
+        desc: `${workout.desc || 'Treino do plano.'} ${suffix}`.slice(0, 140)
+      };
+    });
+
+    week.totalKm = week.workouts.reduce((sum, w) => sum + Number(w.km || 0), 0);
+  }
+
+  localStorage.setItem(getAIPlanStorageKey(), JSON.stringify(plan));
+
+  if (AICoach.isPlanAdopted()) {
+    applyAdoptedPlan();
+  }
+
+  return true;
 }
 
 // ===== EDIT FUNCTIONS =====
@@ -1015,6 +1451,7 @@ document.getElementById('login-form').addEventListener('submit', (e) => {
   if (ALLOWED_USERS[user] && ALLOWED_USERS[user] === pass) {
     localStorage.setItem('planebsb_logged_in', 'true');
     localStorage.setItem('planebsb_current_user', user);
+    reloadUserAdaptiveState();
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
   } else {
@@ -1058,6 +1495,7 @@ window.addEventListener('load', () => {
       document.getElementById('login-screen').classList.remove('hidden');
     } else {
       document.getElementById('app').classList.remove('hidden');
+      reloadUserAdaptiveState();
     }
 
     renderHome();

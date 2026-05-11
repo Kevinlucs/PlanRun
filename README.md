@@ -82,3 +82,33 @@ A camada de revisão técnica exibe ao usuário o resultado do Validation Engine
 - semanas de recuperação, polimento e semana da prova.
 
 Isso torna a geração mais transparente: quando o sistema informa “1 ajuste”, o atleta consegue ver exatamente o que foi corrigido.
+
+## Adaptive Training Engine
+
+Esta versão adiciona acompanhamento ativo do atleta após a geração da planilha.
+
+### Recursos adicionados
+
+- Status por treino: pendente, concluído, parcial ou pulado.
+- Registro de km realizado, pace realizado, esforço percebido e observações.
+- Check-in semanal liberado quando todos os treinos da semana forem registrados.
+- Adjustment Engine local para ajustar semanas futuras com base no feedback.
+- Redução automática da próxima semana quando houver dor, esforço alto ou baixa aderência.
+- Aumento conservador quando a semana for completa e muito leve.
+- Histórico de check-ins e ajustes salvo no localStorage por usuário.
+
+### Fluxo atual
+
+```txt
+IA gera blueprint estratégico
+↓
+Plan Engine gera a planilha completa
+↓
+Validation Engine corrige e valida
+↓
+Plan Review Engine mostra o laudo técnico
+↓
+Adaptive Training Engine acompanha treinos e ajusta o plano
+```
+
+O banco de dados ainda não é obrigatório nesta etapa. O MVP continua usando `localStorage` por usuário.
