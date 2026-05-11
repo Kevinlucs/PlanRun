@@ -226,10 +226,14 @@ ${JSON.stringify(localPaces)}
 
 RETORNE APENAS JSON VÁLIDO, pequeno, sem markdown, com esta estrutura exata:
 {
-  "profile": {
+  "athleteAnalysis": {
+    "detectedLevel": "iniciante|intermediário|avançado",
     "riskLevel": "baixo|moderado|alto",
-    "fitnessLevel": "iniciante|intermediário|avançado",
-    "mainLimitation": "texto curto"
+    "goalFeasibility": "viável|viável com progressão conservadora|agressivo|não recomendado",
+    "mainStrength": "texto curto",
+    "mainWeakness": "texto curto",
+    "focus": "texto curto",
+    "coachSummary": "resumo técnico em até 280 caracteres"
   },
   "strategy": {
     "initialWeeklyKm": 24,
@@ -252,7 +256,16 @@ RETORNE APENAS JSON VÁLIDO, pequeno, sem markdown, com esta estrutura exata:
     { "phase": "Resistência", "startWeek": 9, "endWeek": 16 },
     { "phase": "Pico", "startWeek": 17, "endWeek": 22 },
     { "phase": "Polimento", "startWeek": 23, "endWeek": 24 }
-  ]
+  ],
+  "warnings": [
+    "alerta curto e prático",
+    "alerta curto e prático"
+  ],
+  "engineCalibration": {
+    "progressionStyle": "conservadora|equilibrada|agressiva",
+    "recoveryPriority": "baixa|média|alta",
+    "intensityBias": "baixo|moderado|alto"
+  }
 }
 
 REGRAS:
@@ -260,6 +273,8 @@ REGRAS:
 - Não inclua workouts.
 - Não inclua nutrição, hidratação ou suplementação.
 - Ajuste volumes ao nível, idade, IMC, teste de 3km, prazo e distância.
+- A análise deve explicar o raciocínio do plano, sem prometer resultado garantido.
+- Se objetivo for agressivo, preserve a prova mas aumente recuperação e reduza progressão.
 - Para ultramaratona, peakLongRunKm normalmente fica entre 55% e 75% da distância alvo, limitado por segurança.
 - Para iniciantes/sobrepeso, use progressão mais conservadora.
 `;
@@ -389,11 +404,30 @@ REGRAS:
     const peakWeeklyKm = Math.max(initialWeeklyKm + 8, Math.round(peakLongRunKm / longSharePeak));
     const taperWeeks = totalWeeks >= 18 ? 3 : 2;
 
+    const riskLevel = imc && imc >= 30 ? 'alto' : imc && imc >= 27 ? 'moderado' : 'baixo';
+    const fitnessLevel = isAdvanced ? 'avançado' : isBeginner ? 'iniciante' : 'intermediário';
+    const goalFeasibility = riskLevel === 'alto'
+      ? 'viável com progressão conservadora'
+      : isUltra && totalWeeks < 20
+        ? 'agressivo'
+        : 'viável';
+
     return {
       profile: {
-        riskLevel: imc && imc >= 30 ? 'alto' : imc && imc >= 27 ? 'moderado' : 'baixo',
-        fitnessLevel: isAdvanced ? 'avançado' : isBeginner ? 'iniciante' : 'intermediário',
+        riskLevel,
+        fitnessLevel,
         mainLimitation: isUltra ? 'Resistência muscular e tolerância a volume' : 'Progressão gradual de volume'
+      },
+      athleteAnalysis: {
+        detectedLevel: fitnessLevel,
+        riskLevel,
+        goalFeasibility,
+        mainStrength: isAdvanced ? 'Boa base de ritmo para suportar treinos de qualidade' : 'Boa janela para evolução gradual',
+        mainWeakness: isUltra ? 'Necessidade de adaptação muscular para longões extensos' : 'Construção segura de volume semanal',
+        focus: isUltra ? 'Resistência aeróbica, longões progressivos e consistência' : 'Base aeróbica, técnica e progressão controlada',
+        coachSummary: isUltra
+          ? 'O plano prioriza consistência e adaptação muscular antes do pico, evitando saltos bruscos de carga.'
+          : 'O plano usa progressão gradual, semanas de recuperação e paces coerentes com o nível informado.'
       },
       strategy: {
         initialWeeklyKm,
@@ -405,6 +439,15 @@ REGRAS:
       },
       paceZones: buildLocalPaceZones(userData),
       phaseDistribution: buildPhaseDistribution(totalWeeks, taperWeeks),
+      warnings: [
+        'Respeite sinais de dor e reduza carga se houver desconforto persistente.',
+        'Evite compensar treinos perdidos acumulando volume em poucos dias.'
+      ],
+      engineCalibration: {
+        progressionStyle: riskLevel === 'alto' ? 'conservadora' : isAdvanced ? 'equilibrada' : 'conservadora',
+        recoveryPriority: riskLevel === 'alto' ? 'alta' : riskLevel === 'moderado' ? 'média' : 'baixa',
+        intensityBias: isAdvanced ? 'moderado' : 'baixo'
+      },
       source: reason ? `fallback: ${reason}` : 'fallback local'
     };
   }
@@ -446,22 +489,47 @@ REGRAS:
       140
     );
 
+    const rawAnalysis = raw?.athleteAnalysis || {};
+    const legacyProfile = raw?.profile || {};
+    const riskLevel = rawAnalysis.riskLevel || legacyProfile.riskLevel || fallback.athleteAnalysis.riskLevel;
+    const detectedLevel = rawAnalysis.detectedLevel || legacyProfile.fitnessLevel || fallback.athleteAnalysis.detectedLevel;
+
+    if (riskLevel === 'alto') {
+      peakWeeklyKm = Math.round(peakWeeklyKm * 0.92);
+      peakLongRunKm = Math.round(peakLongRunKm * 0.94);
+    } else if (riskLevel === 'moderado') {
+      peakWeeklyKm = Math.round(peakWeeklyKm * 0.96);
+    }
+
     if (peakWeeklyKm < peakLongRunKm + 8) peakWeeklyKm = peakLongRunKm + 8;
+
+    const normalizedStrategy = {
+      initialWeeklyKm: Math.round(initialWeeklyKm),
+      peakWeeklyKm: Math.round(peakWeeklyKm),
+      initialLongRunKm: Math.round(initialLongRunKm),
+      peakLongRunKm: Math.round(peakLongRunKm),
+      recoveryEveryWeeks: riskLevel === 'alto'
+        ? 3
+        : clamp(Number(strategy.recoveryEveryWeeks || fallbackStrategy.recoveryEveryWeeks), 3, 5),
+      taperWeeks
+    };
 
     return {
       profile: {
-        riskLevel: raw?.profile?.riskLevel || fallback.profile.riskLevel,
-        fitnessLevel: raw?.profile?.fitnessLevel || fallback.profile.fitnessLevel,
-        mainLimitation: raw?.profile?.mainLimitation || fallback.profile.mainLimitation
+        riskLevel,
+        fitnessLevel: detectedLevel,
+        mainLimitation: legacyProfile.mainLimitation || rawAnalysis.mainWeakness || fallback.profile.mainLimitation
       },
-      strategy: {
-        initialWeeklyKm: Math.round(initialWeeklyKm),
-        peakWeeklyKm: Math.round(peakWeeklyKm),
-        initialLongRunKm: Math.round(initialLongRunKm),
-        peakLongRunKm: Math.round(peakLongRunKm),
-        recoveryEveryWeeks: clamp(Number(strategy.recoveryEveryWeeks || fallbackStrategy.recoveryEveryWeeks), 3, 5),
-        taperWeeks
+      athleteAnalysis: {
+        detectedLevel,
+        riskLevel,
+        goalFeasibility: rawAnalysis.goalFeasibility || fallback.athleteAnalysis.goalFeasibility,
+        mainStrength: rawAnalysis.mainStrength || fallback.athleteAnalysis.mainStrength,
+        mainWeakness: rawAnalysis.mainWeakness || legacyProfile.mainLimitation || fallback.athleteAnalysis.mainWeakness,
+        focus: rawAnalysis.focus || fallback.athleteAnalysis.focus,
+        coachSummary: rawAnalysis.coachSummary || fallback.athleteAnalysis.coachSummary
       },
+      strategy: normalizedStrategy,
       paceZones: {
         ...fallback.paceZones,
         ...(raw?.paceZones || {})
@@ -469,6 +537,13 @@ REGRAS:
       phaseDistribution: Array.isArray(raw?.phaseDistribution) && raw.phaseDistribution.length
         ? normalizePhaseDistribution(raw.phaseDistribution, totalWeeks, taperWeeks)
         : buildPhaseDistribution(totalWeeks, taperWeeks),
+      warnings: Array.isArray(raw?.warnings) && raw.warnings.length
+        ? raw.warnings.slice(0, 5).map(w => String(w).slice(0, 180))
+        : fallback.warnings,
+      engineCalibration: {
+        ...fallback.engineCalibration,
+        ...(raw?.engineCalibration || {})
+      },
       source
     };
   }
@@ -514,6 +589,16 @@ REGRAS:
     let weeklyKm = interpolate(s.initialWeeklyKm, s.peakWeeklyKm, buildRatio);
     let longRunKm = interpolate(s.initialLongRunKm, s.peakLongRunKm, buildRatio);
     let isRecovery = false;
+
+    const calibration = blueprint.engineCalibration || {};
+    const progressionStyle = calibration.progressionStyle || 'equilibrada';
+
+    if (weekNumber < taperStart && progressionStyle === 'conservadora') {
+      weeklyKm = s.initialWeeklyKm + (weeklyKm - s.initialWeeklyKm) * 0.92;
+      longRunKm = s.initialLongRunKm + (longRunKm - s.initialLongRunKm) * 0.92;
+    } else if (weekNumber < taperStart && progressionStyle === 'agressiva') {
+      weeklyKm = s.initialWeeklyKm + (weeklyKm - s.initialWeeklyKm) * 1.04;
+    }
 
     if (weekNumber < taperStart && weekNumber % s.recoveryEveryWeeks === 0) {
       weeklyKm *= 0.72;

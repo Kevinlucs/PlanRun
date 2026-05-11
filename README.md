@@ -138,3 +138,17 @@ Após publicar, limpe o Service Worker/cache do navegador para carregar o `planr
 - Removida a exportação CSV da interface.
 - Mantida a exportação Excel profissional (.xls).
 - Adicionada exportação PDF profissional via janela de impressão do navegador, com layout visual, resumo do plano, KPIs, ajustes recentes e planilha detalhada por semana.
+
+## IA Coach Strategy 2.0
+
+A IA agora atua como gestora estratégica do plano. Em vez de gerar a planilha inteira, ela devolve um blueprint compacto com análise do atleta, risco do objetivo, viabilidade, pontos fortes, pontos de atenção, zonas de pace, alertas e calibração do motor de treino.
+
+O motor local continua responsável por montar todas as semanas, validar a estrutura e manter o plano exportável em XLS/PDF.
+
+### Campos principais do blueprint
+
+- `athleteAnalysis`: análise técnica do atleta, nível detectado, risco, viabilidade, foco e resumo do coach.
+- `strategy`: volume inicial, volume pico, longão inicial, longão máximo, frequência de recuperação e polimento.
+- `paceZones`: zonas de ritmo usadas pelo motor.
+- `warnings`: alertas práticos do plano.
+- `engineCalibration`: estilo de progressão, prioridade de recuperação e viés de intensidade.

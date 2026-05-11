@@ -781,7 +781,10 @@ function getExportSummary() {
     peakWeeklyKm,
     biggestLongRun,
     checkins: Object.keys(weeklyCheckins || {}).length,
-    adjustments: Array.isArray(adjustmentHistory) ? adjustmentHistory.length : 0
+    adjustments: Array.isArray(adjustmentHistory) ? adjustmentHistory.length : 0,
+    athleteAnalysis: plan?.blueprint?.athleteAnalysis || null,
+    coachWarnings: Array.isArray(plan?.blueprint?.warnings) ? plan.blueprint.warnings : [],
+    engineCalibration: plan?.blueprint?.engineCalibration || null
   };
 }
 
@@ -921,6 +924,23 @@ function buildProfessionalExcelHTML() {
     </tr>
     <tr><td colspan="14"></td></tr>
 
+    ${summary.athleteAnalysis ? `
+      <tr><td colspan="14" class="section-title">Análise do Coach IA</td></tr>
+      <tr>
+        <td colspan="2" class="kpi-label">Nível detectado</td><td colspan="2" class="kpi-value">${excelCell(summary.athleteAnalysis.detectedLevel || '')}</td>
+        <td colspan="2" class="kpi-label">Risco</td><td colspan="2" class="kpi-value">${excelCell(summary.athleteAnalysis.riskLevel || '')}</td>
+        <td colspan="2" class="kpi-label">Viabilidade</td><td colspan="4" class="kpi-value">${excelCell(summary.athleteAnalysis.goalFeasibility || '')}</td>
+      </tr>
+      <tr>
+        <td colspan="2" class="kpi-label">Foco</td><td colspan="4" class="kpi-value">${excelCell(summary.athleteAnalysis.focus || '')}</td>
+        <td colspan="2" class="kpi-label">Progressão</td><td colspan="2" class="kpi-value">${excelCell(summary.engineCalibration?.progressionStyle || '')}</td>
+        <td colspan="2" class="kpi-label">Recuperação</td><td colspan="2" class="kpi-value">${excelCell(summary.engineCalibration?.recoveryPriority || '')}</td>
+      </tr>
+      <tr><td colspan="2" class="kpi-label">Resumo</td><td colspan="12" class="kpi-value">${excelCell(summary.athleteAnalysis.coachSummary || '')}</td></tr>
+      <tr><td colspan="2" class="kpi-label">Alertas</td><td colspan="12" class="kpi-value">${excelCell(summary.coachWarnings.join(' | '))}</td></tr>
+      <tr><td colspan="14"></td></tr>
+    ` : ''}
+
     <tr><td colspan="14" class="section-title">Resumo semanal</td></tr>
     <tr>
       <th>Semana</th><th>Fase</th><th>Km planejado</th><th>Km realizado</th><th>Aderência</th><th>Treinos</th><th colspan="8">Observação</th>
@@ -1035,6 +1055,26 @@ function buildProfessionalPDFHTML() {
     `).join('')
     : '<li><strong>Sem ajustes registrados</strong><span>O plano segue sem alterações adaptativas.</span></li>';
 
+  const coach = summary.athleteAnalysis || {};
+  const coachWarnings = summary.coachWarnings || [];
+  const coachSection = summary.athleteAnalysis ? `
+    <h2 class="section-title">Análise do Coach IA</h2>
+    <section class="coach-box">
+      <div class="coach-summary-pdf">${pdfCell(coach.coachSummary || '')}</div>
+      <div class="coach-grid-pdf">
+        <div><small>Nível detectado</small><strong>${pdfCell(coach.detectedLevel || '-')}</strong></div>
+        <div><small>Risco</small><strong>${pdfCell(coach.riskLevel || '-')}</strong></div>
+        <div><small>Viabilidade</small><strong>${pdfCell(coach.goalFeasibility || '-')}</strong></div>
+        <div><small>Progressão</small><strong>${pdfCell(summary.engineCalibration?.progressionStyle || '-')}</strong></div>
+      </div>
+      <div class="coach-two-pdf">
+        <div><small>Ponto forte</small><strong>${pdfCell(coach.mainStrength || '-')}</strong></div>
+        <div><small>Ponto de atenção</small><strong>${pdfCell(coach.mainWeakness || '-')}</strong></div>
+      </div>
+      ${coachWarnings.length ? `<ul class="coach-warning-pdf">${coachWarnings.map(w => `<li>${pdfCell(w)}</li>`).join('')}</ul>` : ''}
+    </section>
+  ` : '';
+
   return `<!doctype html>
 <html lang="pt-BR">
 <head>
@@ -1062,6 +1102,15 @@ function buildProfessionalPDFHTML() {
     .adjustments li { border: 1px solid #fed7aa; background: #fff7ed; border-radius: 14px; padding: 10px 12px; }
     .adjustments strong { display: block; color: #9a3412; margin-bottom: 4px; }
     .adjustments span { font-size: 12px; color: #374151; }
+    .coach-box { border: 1px solid #fed7aa; background: #fff7ed; border-radius: 18px; padding: 16px; margin-bottom: 20px; break-inside: avoid; page-break-inside: avoid; }
+    .coach-summary-pdf { font-size: 13px; font-weight: 700; color: #374151; line-height: 1.5; margin-bottom: 12px; }
+    .coach-grid-pdf, .coach-two-pdf { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 10px; }
+    .coach-two-pdf { grid-template-columns: repeat(2, 1fr); }
+    .coach-grid-pdf div, .coach-two-pdf div { background: #fff; border: 1px solid #fed7aa; border-radius: 12px; padding: 10px; }
+    .coach-grid-pdf small, .coach-two-pdf small { display: block; color: #9a3412; font-size: 9px; font-weight: 900; text-transform: uppercase; margin-bottom: 4px; }
+    .coach-grid-pdf strong, .coach-two-pdf strong { font-size: 12px; color: #111827; }
+    .coach-warning-pdf { margin: 8px 0 0 18px; padding: 0; color: #374151; font-size: 12px; }
+    .coach-warning-pdf li { margin: 3px 0; }
     .week-card { break-inside: avoid; page-break-inside: avoid; border: 1px solid #e5e7eb; border-radius: 18px; margin: 0 0 16px; overflow: hidden; background: #fff; }
     .week-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
     .eyebrow { display: block; color: #FC4C02; font-size: 10px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
@@ -1105,6 +1154,8 @@ function buildProfessionalPDFHTML() {
       <div class="kpi"><small>Volume pico</small><strong>${excelKm(summary.peakWeeklyKm)}</strong></div>
       <div class="kpi"><small>Aderência</small><strong>${pdfCell(summary.adherence)}%</strong></div>
     </section>
+
+    ${coachSection}
 
     <h2 class="section-title">Ajustes adaptativos recentes</h2>
     <ul class="adjustments">${adjustmentRows}</ul>
@@ -1564,6 +1615,73 @@ function getPlanReviewSummary(plan) {
     raceWeek: validationSummary.raceWeek || weeks[weeks.length - 1]?.week || '-'
   };
 }
+function getRiskLabelClass(riskLevel) {
+  const value = String(riskLevel || '').toLowerCase();
+  if (value.includes('alto')) return 'high';
+  if (value.includes('moderado') || value.includes('médio') || value.includes('medio')) return 'medium';
+  return 'low';
+}
+
+function renderCoachAnalysis(plan) {
+  const blueprint = plan?.blueprint || {};
+  const analysis = blueprint.athleteAnalysis || {};
+  const strategy = blueprint.strategy || {};
+  const warnings = Array.isArray(blueprint.warnings) ? blueprint.warnings : [];
+  const calibration = blueprint.engineCalibration || {};
+
+  if (!analysis.coachSummary && !analysis.detectedLevel && !strategy.initialWeeklyKm) return '';
+
+  const riskClass = getRiskLabelClass(analysis.riskLevel || blueprint.profile?.riskLevel);
+
+  return `
+    <div class="coach-analysis-card">
+      <div class="coach-analysis-header">
+        <div>
+          <span class="plan-review-eyebrow">Análise do Coach IA</span>
+          <h4>🧠 Estratégia personalizada</h4>
+        </div>
+        <span class="coach-risk-pill ${riskClass}">Risco: ${escapeHTML(analysis.riskLevel || blueprint.profile?.riskLevel || 'baixo')}</span>
+      </div>
+
+      <p class="coach-summary">${escapeHTML(analysis.coachSummary || 'Estratégia montada com base no perfil informado, prazo, distância alvo e teste de ritmo.')}</p>
+
+      <div class="coach-analysis-grid">
+        <div><span>Nível detectado</span><strong>${escapeHTML(analysis.detectedLevel || blueprint.profile?.fitnessLevel || '-')}</strong></div>
+        <div><span>Viabilidade</span><strong>${escapeHTML(analysis.goalFeasibility || '-')}</strong></div>
+        <div><span>Foco principal</span><strong>${escapeHTML(analysis.focus || blueprint.profile?.mainLimitation || '-')}</strong></div>
+        <div><span>Progressão</span><strong>${escapeHTML(calibration.progressionStyle || 'equilibrada')}</strong></div>
+      </div>
+
+      <div class="coach-strength-grid">
+        <div>
+          <span>Ponto forte</span>
+          <strong>${escapeHTML(analysis.mainStrength || '-')}</strong>
+        </div>
+        <div>
+          <span>Ponto de atenção</span>
+          <strong>${escapeHTML(analysis.mainWeakness || blueprint.profile?.mainLimitation || '-')}</strong>
+        </div>
+      </div>
+
+      <div class="coach-strategy-strip">
+        <span>Inicial: <strong>${formatKm(strategy.initialWeeklyKm)}</strong></span>
+        <span>Pico: <strong>${formatKm(strategy.peakWeeklyKm)}</strong></span>
+        <span>Longão máx.: <strong>${formatKm(strategy.peakLongRunKm)}</strong></span>
+        <span>Recuperação: <strong>a cada ${escapeHTML(strategy.recoveryEveryWeeks || '-')} sem.</strong></span>
+      </div>
+
+      ${warnings.length ? `
+        <div class="coach-warnings">
+          <span>Alertas do plano</span>
+          <ul>
+            ${warnings.map(warning => `<li>${escapeHTML(warning)}</li>`).join('')}
+          </ul>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
 
 function renderPlanReview(plan) {
   const validation = plan?.validation || null;
@@ -1584,6 +1702,8 @@ function renderPlanReview(plan) {
         </div>
         <div class="plan-review-pill ${status}">${totalFixes} ajuste(s)</div>
       </div>
+
+      ${renderCoachAnalysis(plan)}
 
       <div class="plan-review-grid">
         <div class="plan-review-metric">

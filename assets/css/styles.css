@@ -2887,3 +2887,145 @@ select.ai-input {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
+
+/* IA Coach Strategy 2.0 */
+.coach-analysis-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(252, 76, 2, 0.08));
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  margin: 0 0 14px;
+}
+
+.coach-analysis-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.coach-analysis-header h4 {
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.coach-risk-pill {
+  flex-shrink: 0;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: capitalize;
+  background: rgba(76, 217, 100, 0.12);
+  border: 1px solid rgba(76, 217, 100, 0.25);
+  color: #4CD964;
+}
+
+.coach-risk-pill.medium {
+  background: rgba(255, 193, 7, 0.12);
+  border-color: rgba(255, 193, 7, 0.25);
+  color: #FFD36A;
+}
+
+.coach-risk-pill.high {
+  background: rgba(255, 59, 48, 0.12);
+  border-color: rgba(255, 59, 48, 0.25);
+  color: var(--red);
+}
+
+.coach-summary {
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+  line-height: 1.55;
+  margin-bottom: 12px;
+}
+
+.coach-analysis-grid,
+.coach-strength-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.coach-analysis-grid div,
+.coach-strength-grid div {
+  background: rgba(0, 0, 0, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+}
+
+.coach-analysis-grid span,
+.coach-strength-grid span,
+.coach-warnings span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.coach-analysis-grid strong,
+.coach-strength-grid strong {
+  display: block;
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.coach-strategy-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+
+.coach-strategy-strip span {
+  background: rgba(252, 76, 2, 0.10);
+  border: 1px solid rgba(252, 76, 2, 0.18);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.coach-strategy-strip strong {
+  color: var(--text-primary);
+}
+
+.coach-warnings {
+  margin-top: 12px;
+  padding: 10px;
+  background: rgba(255, 193, 7, 0.08);
+  border: 1px solid rgba(255, 193, 7, 0.18);
+  border-radius: var(--radius-sm);
+}
+
+.coach-warnings ul {
+  margin: 6px 0 0 18px;
+  padding: 0;
+}
+
+.coach-warnings li {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  margin: 4px 0;
+}
+
+@media (max-width: 640px) {
+  .coach-analysis-header {
+    flex-direction: column;
+  }
+
+  .coach-analysis-grid,
+  .coach-strength-grid {
+    grid-template-columns: 1fr;
+  }
+}
