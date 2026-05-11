@@ -1630,6 +1630,7 @@ select.ai-input {
   background: var(--bg-card);
   transform: scale(0.96);
 }
+
 /* Login Screen */
 .login-screen {
   position: fixed;
@@ -1656,8 +1657,8 @@ select.ai-input {
   background: var(--bg-card);
   padding: 32px 24px;
   border-radius: var(--radius-lg);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-  border: 1px solid rgba(255,255,255,0.05);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   text-align: center;
 }
 
@@ -1821,107 +1822,108 @@ select.ai-input {
 
 /* ===== RESPONSIVIDADE PARA CELULARES MENORES ===== */
 @media (max-width: 400px) {
+
   /* Header */
   .header-title {
     font-size: 1.1rem;
   }
-  
+
   /* Login */
   .login-container {
     padding: 24px 16px;
   }
-  
+
   .login-logo .logo-text {
     font-size: 1.6rem;
   }
-  
+
   /* Hero Section */
   .hero-card {
     padding: 16px;
   }
-  
+
   .hero-card .workout-title {
     font-size: 1.15rem;
   }
-  
+
   .hero-card .meta-item {
     font-size: 0.8rem;
     padding: 4px 8px;
   }
-  
+
   /* Countdown */
   .countdown-value {
     font-size: 1.3rem;
   }
-  
+
   .countdown-unit {
     font-size: 0.6rem;
   }
-  
+
   /* Stats & Workout Detail */
   .stats-grid,
   .wd-stats {
     grid-template-columns: 1fr;
     gap: 8px;
   }
-  
+
   .stat-card,
   .wd-stat {
     padding: 12px;
   }
-  
+
   .stat-card-value,
   .wd-stat-value {
     font-size: 1.2rem;
   }
-  
+
   /* AI Coach Form */
   .ai-form-row {
     flex-direction: column;
     gap: 0;
   }
-  
+
   .ai-radio-group {
     flex-direction: column;
   }
-  
+
   .ai-radio-option {
     width: 100%;
   }
-  
+
   .ai-weeks-info {
     font-size: 0.85rem;
   }
-  
+
   /* AI Result */
   .ai-week-header-left {
     flex-wrap: wrap;
     gap: 4px;
   }
-  
+
   .ai-week-title {
     font-size: 0.85rem;
   }
-  
+
   .ai-workout-day {
     min-width: 36px;
     height: 36px;
     font-size: 0.8rem;
   }
-  
+
   .ai-workout-title {
     font-size: 0.85rem;
   }
-  
+
   /* Phases */
   .phase-card {
     padding: 20px 16px;
   }
-  
+
   .phase-card h2 {
     font-size: 1.2rem;
   }
-  
+
   /* App Header Stats */
   .stat-km {
     font-size: 0.85rem;
@@ -1933,19 +1935,19 @@ select.ai-input {
   .logo-text {
     font-size: 1.8rem;
   }
-  
+
   .bottom-nav span {
     font-size: 0.6rem;
   }
-  
+
   .nav-item {
     padding: 8px 4px;
   }
-  
+
   .countdown-body {
     gap: 4px;
   }
-  
+
   .countdown-divider {
     display: none;
   }

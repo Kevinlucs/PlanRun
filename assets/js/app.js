@@ -311,7 +311,7 @@ function renderStats() {
     { key: 'pico', name: 'PICO', sub: 'Semanas 17-24' },
     { key: 'polimento', name: 'POLIMENTO', sub: 'Semanas 25+' },
   ];
-  
+
   const plan = AICoach.loadPlan();
   const profile = plan && plan.userData ? plan.userData : null;
   if (profile && profile.imc) {
@@ -370,7 +370,7 @@ function showPage(page) {
 function renderAICoachPage() {
   const formSection = document.getElementById('ai-form-section');
   formSection.classList.remove('hidden');
-  
+
   // Restore profile data if exists
   const profile = AICoach.loadProfile();
   if (profile) {
@@ -441,7 +441,7 @@ function secondsToTimeStr(totalSeconds) {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
-window.handle3kmTimeInput = function(input) {
+window.handle3kmTimeInput = function (input) {
   const val = input.value.trim();
   if (val.match(/^\d{1,2}:\d{2}$/)) {
     const totalSecs = timeStrToSeconds(val);
@@ -450,7 +450,7 @@ window.handle3kmTimeInput = function(input) {
   }
 };
 
-window.handle3kmPaceInput = function(input) {
+window.handle3kmPaceInput = function (input) {
   const val = input.value.trim();
   if (val.match(/^\d{1,2}:\d{2}$/)) {
     const paceSecs = timeStrToSeconds(val);
@@ -500,13 +500,13 @@ function validateFormData(data) {
   if (!data.weight) return 'Informe seu peso.';
   if (!data.startDate) return 'Informe a data de início dos treinos.';
   if (!data.raceDate) return 'Informe a data da prova.';
-  
+
   const startDate = new Date(data.startDate);
   const raceDate = new Date(data.raceDate);
   const now = new Date();
-  
+
   if (raceDate <= startDate) return 'A data da prova deve ser depois da data de início.';
-  
+
   const weeks = AICoach.calculateWeeks(data.startDate, data.raceDate);
   if (weeks < 4) return 'Precisa ter pelo menos 4 semanas de treino até a prova.';
   if ((data.targetDistance === 'custom' || data.targetDistance === 'ultra') && !data.customDistance) {
@@ -669,7 +669,7 @@ function applyAdoptedPlan() {
   // Update race info
   RACE_DATE.setTime(adopted.raceDate.getTime());
   START_DATE.setTime(adopted.startDate.getTime());
-  
+
   const raceNameEl = document.getElementById('countdown-race-name');
   if (raceNameEl && adopted.raceName) {
     raceNameEl.textContent = `${adopted.raceName.toUpperCase()} - ${adopted.raceDistance}KM`;
@@ -866,7 +866,7 @@ if (btnTogglePassword) {
     const passwordInput = document.getElementById('login-password');
     const iconEye = document.getElementById('icon-eye');
     const iconEyeOff = document.getElementById('icon-eye-off');
-    
+
     if (passwordInput.type === 'password') {
       passwordInput.type = 'text';
       iconEye.classList.add('hidden');
@@ -888,7 +888,7 @@ window.addEventListener('load', () => {
 
   setTimeout(() => {
     document.getElementById('splash-screen').style.display = 'none';
-    
+
     // Check Login State
     const isLoggedIn = localStorage.getItem('planebsb_logged_in') === 'true';
     if (!isLoggedIn) {

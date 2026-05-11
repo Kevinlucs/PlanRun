@@ -1,13 +1,24 @@
 // ===== AI COACH MODULE =====
-// Integração com Google Gemini API para geração de planilha de treino personalizada
+// IA = gestora estratégica. Código = motor determinístico da planilha.
+// A IA gera um blueprint pequeno; o PlanRun monta todas as semanas localmente.
 
 const AICoach = (() => {
   function getPlanKey() { return `${localStorage.getItem('planebsb_current_user')}_planebsb_ai_plan`; }
   function getAdoptedKey() { return `${localStorage.getItem('planebsb_current_user')}_planebsb_ai_adopted`; }
 
-  // ===== API CALL CONFIG =====
-  // Agora usamos a nossa própria API na Vercel para mascarar a chave
   const API_ENDPOINT = '/api/generate-plan';
+
+  const DAY_NAMES = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  const MONDAY_INDEXED_DAYS = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+
+  const DEFAULT_PACE_ZONES = {
+    easy: 'Leve',
+    moderate: 'Moderado',
+    threshold: 'Forte controlado',
+    interval: 'Forte',
+    long: 'Leve',
+    racePace: 'Ritmo de prova'
+  };
 
   // ===== PROFILE =====
   function saveProfile(data) {
@@ -18,115 +29,42 @@ const AICoach = (() => {
     return null; // Sempre retorna null para forçar formulário limpo
   }
 
-  // Helper para converter "YYYY-MM-DD" local evitando bug de timezone (UTC -3)
+  // ===== DATE / NUMBER HELPERS =====
   function parseLocalDate(dateStr) {
     if (!dateStr) return new Date();
-    const [y, m, d] = dateStr.split('-');
+    const [y, m, d] = String(dateStr).split('-').map(Number);
     return new Date(y, m - 1, d);
   }
 
-  // ===== PROMPT ENGINEERING =====
-  function buildPrompt(userData) {
-    const distLabels = {
-      '5': '5 km',
-      '10': '10 km',
-      '21': 'Meia Maratona (21.1 km)',
-      '42': 'Maratona (42.2 km)',
-      'ultra': 'Ultramaratona',
-    };
+  function addDays(date, days) {
+    const d = new Date(date);
+    d.setDate(d.getDate() + days);
+    return d;
+  }
 
-    let distLabel = distLabels[userData.targetDistance] || `${userData.customDistance} km`;
-    if (userData.targetDistance === 'ultra' && userData.customDistance) {
-      distLabel = `Ultramaratona (${userData.customDistance} km)`;
-    }
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
 
-    let temposAnteriores = '';
-    if (userData.time5k) temposAnteriores += `- Melhor tempo 5K: ${userData.time5k}\n`;
-    if (userData.time10k) temposAnteriores += `- Melhor tempo 10K: ${userData.time10k}\n`;
-    if (userData.time21k) temposAnteriores += `- Melhor tempo 21K: ${userData.time21k}\n`;
-    if (userData.time42k) temposAnteriores += `- Melhor tempo 42K: ${userData.time42k}\n`;
-    if (!temposAnteriores) temposAnteriores = '- Nenhum tempo anterior informado\n';
+  function roundKm(value) {
+    const n = Number(value || 0);
+    return Math.max(1, Math.round(n));
+  }
 
-    const totalWeeks = calculateWeeks(userData.startDate, userData.raceDate);
+  function parseNumber(value, fallback = 0) {
+    const n = Number(String(value ?? '').replace(',', '.'));
+    return Number.isFinite(n) ? n : fallback;
+  }
 
-    const startD = parseLocalDate(userData.startDate);
-    const diasSemana = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-    const startDOW = diasSemana[startD.getDay()];
+  function calculateIMC(userData) {
+    if (userData.imc) return parseNumber(userData.imc, null);
 
-    let imcText = '';
-    if (userData.imc) {
-      imcText = `\n- IMC Atual: ${userData.imc} (Forneça uma recomendação nutricional e de ritmo adequada a este IMC)`;
-    }
+    const weight = parseNumber(userData.weight, 0);
+    const heightCm = parseNumber(userData.height, 0);
+    if (!weight || !heightCm) return null;
 
-    let test3kmText = '';
-    if (userData.test3kmTime || userData.test3kmPace) {
-      test3kmText = `\nTESTE DE 3KM E FISIOLOGIA:\n- Tempo no Teste de 3km: ${userData.test3kmTime || 'N/A'}\n- Pace no Teste de 3km: ${userData.test3kmPace || 'N/A'}\nINSTRUÇÃO ESPECIAL: Utilize este resultado do teste de 3km para prescrever os paces de todos os treinos de forma matematicamente precisa.`;
-    }
-
-    return `Você é um treinador profissional de corrida de rua com 20+ anos de experiência. Crie uma planilha de treino COMPLETA e PERSONALIZADA.
-
-DADOS DO ATLETA:
-- Nome: ${userData.name || 'Atleta'}
-- Idade: ${userData.age} anos
-- Altura: ${userData.height} cm
-- Peso: ${userData.weight} kg${imcText}
-- Nível: ${userData.level.toUpperCase()}
-- Distância Alvo: ${distLabel}
-- Dias de treino por semana: ${userData.daysPerWeek} dias
-- Data de Início: ${userData.startDate} (${startDOW})
-- Data da Prova: ${userData.raceDate}${test3kmText}
-
-TEMPOS ANTERIORES:
-${temposAnteriores}
-
-REGRAS OBRIGATÓRIAS:
-1. Divida o plano em fases: Base, Resistência, Pico e Polimento (Taper)
-2. Inclua semanas de descanso/off a cada 3-4 semanas
-3. Respeite a periodização: volume crescente na Base, intensidade na Resistência, pico de volume no Pico, e redução no Polimento
-4. O primeiro treino da semana DEVE OBRIGATORIAMENTE ser no dia: ${startDOW} (Data de Início). Distribua os outros dias ao longo da semana.
-5. Inclua variedade: treinos leves, intervalados, tempo run, longão, subidas
-6. O longão (maior distância) deve ser sempre no último dia da semana de treino
-7. Adapte as distâncias e paces ao nível do atleta
-8. A última semana deve terminar com a prova
-9. Use exatamente ${totalWeeks} semanas no total
-
-FORMATO DE RESPOSTA — RETORNE APENAS O JSON, sem texto adicional:
-{
-  "planName": "Plano [distância] - [nível]",
-  "totalWeeks": ${totalWeeks},
-  "raceName": "${distLabel}",
-  "raceDistance": "${distLabel}",
-  "raceDate": "${userData.raceDate}",
-  "daysPerWeek": ${userData.daysPerWeek},
-  "weeks": [
-    {
-      "week": "S1",
-      "phase": "Base",
-      "off": false,
-      "workouts": [
-        {
-          "dayOfWeek": "${startDOW}",
-          "dayType": "Qualidade",
-          "title": "8km Forte/Pace",
-          "desc": "Descrição detalhada do treino com instruções claras",
-          "km": 8,
-          "pace": "6:30/km"
-        }
-      ]
-    }
-  ]
-}
-
-IMPORTANTE:
-- VOCÊ DEVE GERAR EXATAMENTE ${totalWeeks} SEMANAS. A última semana do JSON deve ser a semana da prova.
-- dayOfWeek deve usar os nomes em português: "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"
-- dayType deve ser um de: "Qualidade", "Base", "Longão", "Recuperação", "Intervalado"
-- Cada semana deve ter exatamente ${userData.daysPerWeek} treinos
-- "off" = true para semanas de descanso/recuperação
-- A fase deve ser: "Base", "Resistência", "Pico" ou "Polimento"
-- Mantenha a descrição (desc) muito curta (máximo 1 frase) para economizar texto.
-- O campo "pace" é obrigatório para todos os treinos.
-- Retorne APENAS o JSON, sem markdown, sem explicação, sem \`\`\``;
+    const heightM = heightCm / 100;
+    return Number((weight / (heightM * heightM)).toFixed(1));
   }
 
   function calculateWeeks(startDateStr, raceDateStr) {
@@ -135,12 +73,10 @@ IMPORTANTE:
     start.setHours(0, 0, 0, 0);
     race.setHours(0, 0, 0, 0);
 
-    // Find Monday of the start week
     const startDay = start.getDay() === 0 ? 6 : start.getDay() - 1;
     const startMonday = new Date(start);
     startMonday.setDate(start.getDate() - startDay);
 
-    // Find Sunday of the race week
     const raceDay = race.getDay() === 0 ? 0 : 7 - race.getDay();
     const raceSunday = new Date(race);
     raceSunday.setDate(race.getDate() + raceDay);
@@ -151,7 +87,184 @@ IMPORTANTE:
     return Math.max(4, Math.min(52, diffWeeks));
   }
 
-  // ===== API CALL =====
+  function getDistanceKm(userData) {
+    if (userData.targetDistance === 'ultra' || userData.targetDistance === 'custom') {
+      return parseNumber(userData.customDistance, 0) || 50;
+    }
+
+    return parseNumber(userData.targetDistance, 42) || 42;
+  }
+
+  function getDistanceLabel(userData) {
+    const distLabels = {
+      '5': '5 km',
+      '10': '10 km',
+      '21': 'Meia Maratona (21.1 km)',
+      '42': 'Maratona (42.2 km)',
+      'ultra': 'Ultramaratona',
+      'custom': `${userData.customDistance || ''} km`.trim()
+    };
+
+    if (userData.targetDistance === 'ultra' && userData.customDistance) {
+      return `Ultramaratona (${userData.customDistance} km)`;
+    }
+
+    return distLabels[userData.targetDistance] || `${getDistanceKm(userData)} km`;
+  }
+
+  function getStartDayOfWeek(userData) {
+    return DAY_NAMES[parseLocalDate(userData.startDate).getDay()];
+  }
+
+  function getPreviousTimesText(userData) {
+    let text = '';
+    if (userData.time5k) text += `- Melhor tempo 5K: ${userData.time5k}\n`;
+    if (userData.time10k) text += `- Melhor tempo 10K: ${userData.time10k}\n`;
+    if (userData.time21k) text += `- Melhor tempo 21K: ${userData.time21k}\n`;
+    if (userData.time42k) text += `- Melhor tempo 42K: ${userData.time42k}\n`;
+    return text || '- Nenhum tempo anterior informado\n';
+  }
+
+  // ===== PACE HELPERS =====
+  function paceToSeconds(pace) {
+    if (!pace) return null;
+    const match = String(pace).match(/(\d{1,2})\s*[:h]\s*(\d{1,2})/i);
+    if (!match) return null;
+    return Number(match[1]) * 60 + Number(match[2]);
+  }
+
+  function timeToSeconds(time) {
+    if (!time) return null;
+    const parts = String(time).trim().split(':').map(Number);
+    if (parts.some(n => !Number.isFinite(n))) return null;
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    return null;
+  }
+
+  function secondsToPace(seconds) {
+    if (!Number.isFinite(seconds)) return '-';
+    const s = Math.max(180, Math.round(seconds));
+    const min = Math.floor(s / 60);
+    const sec = String(s % 60).padStart(2, '0');
+    return `${min}:${sec}/km`;
+  }
+
+  function paceRange(baseSeconds, minAdd, maxAdd) {
+    if (!baseSeconds) return '-';
+    return `${secondsToPace(baseSeconds + minAdd)}-${secondsToPace(baseSeconds + maxAdd)}`;
+  }
+
+  function inferBasePaceSeconds(userData) {
+    const fromPace = paceToSeconds(userData.test3kmPace);
+    if (fromPace) return fromPace;
+
+    const testTime = timeToSeconds(userData.test3kmTime);
+    if (testTime) return Math.round(testTime / 3);
+
+    const time5k = timeToSeconds(userData.time5k);
+    if (time5k) return Math.round(time5k / 5);
+
+    const time10k = timeToSeconds(userData.time10k);
+    if (time10k) return Math.round(time10k / 10) - 10;
+
+    const level = String(userData.level || '').toLowerCase();
+    if (level.includes('av')) return 300; // 5:00/km
+    if (level.includes('inter')) return 360; // 6:00/km
+    return 450; // 7:30/km
+  }
+
+  function buildLocalPaceZones(userData) {
+    const base = inferBasePaceSeconds(userData);
+    if (!base) return { ...DEFAULT_PACE_ZONES };
+
+    const raceDistance = getDistanceKm(userData);
+    const raceAdd = raceDistance >= 42 ? 80 : raceDistance >= 21 ? 55 : raceDistance >= 10 ? 35 : 20;
+
+    return {
+      easy: paceRange(base, 85, 135),
+      moderate: paceRange(base, 55, 85),
+      threshold: paceRange(base, 20, 45),
+      interval: paceRange(base, -10, 15),
+      long: paceRange(base, 95, 150),
+      racePace: secondsToPace(base + raceAdd)
+    };
+  }
+
+  // ===== AI BLUEPRINT =====
+  function buildBlueprintPrompt(userData) {
+    const totalWeeks = calculateWeeks(userData.startDate, userData.raceDate);
+    const distanceKm = getDistanceKm(userData);
+    const distLabel = getDistanceLabel(userData);
+    const imc = calculateIMC(userData);
+    const localPaces = buildLocalPaceZones(userData);
+
+    return `
+Você é um treinador profissional de corrida. Não gere planilha treino por treino.
+Gere apenas um BLUEPRINT estratégico pequeno para o motor do app montar a planilha.
+
+DADOS DO ATLETA:
+- Nome: ${userData.name || 'Atleta'}
+- Idade: ${userData.age || 'não informado'}
+- Altura: ${userData.height || 'não informado'} cm
+- Peso: ${userData.weight || 'não informado'} kg
+- IMC: ${imc || 'não informado'}
+- Nível declarado: ${userData.level || 'iniciante'}
+- Distância alvo: ${distLabel}
+- Distância alvo em km: ${distanceKm}
+- Dias de treino por semana: ${userData.daysPerWeek || 3}
+- Total de semanas: ${totalWeeks}
+- Data de início: ${userData.startDate}
+- Data da prova: ${userData.raceDate}
+- Pace/tempo teste 3km: ${userData.test3kmPace || userData.test3kmTime || 'não informado'}
+
+TEMPOS ANTERIORES:
+${getPreviousTimesText(userData)}
+
+PACES BASE CALCULADOS PELO APP:
+${JSON.stringify(localPaces)}
+
+RETORNE APENAS JSON VÁLIDO, pequeno, sem markdown, com esta estrutura exata:
+{
+  "profile": {
+    "riskLevel": "baixo|moderado|alto",
+    "fitnessLevel": "iniciante|intermediário|avançado",
+    "mainLimitation": "texto curto"
+  },
+  "strategy": {
+    "initialWeeklyKm": 24,
+    "peakWeeklyKm": 62,
+    "initialLongRunKm": 10,
+    "peakLongRunKm": 42,
+    "recoveryEveryWeeks": 4,
+    "taperWeeks": 2
+  },
+  "paceZones": {
+    "easy": "6:40/km-7:20/km",
+    "moderate": "6:00/km-6:30/km",
+    "threshold": "5:25/km-5:50/km",
+    "interval": "4:50/km-5:15/km",
+    "long": "6:50/km-7:40/km",
+    "racePace": "6:30/km"
+  },
+  "phaseDistribution": [
+    { "phase": "Base", "startWeek": 1, "endWeek": 8 },
+    { "phase": "Resistência", "startWeek": 9, "endWeek": 16 },
+    { "phase": "Pico", "startWeek": 17, "endWeek": 22 },
+    { "phase": "Polimento", "startWeek": 23, "endWeek": 24 }
+  ]
+}
+
+REGRAS:
+- Não inclua semanas detalhadas.
+- Não inclua workouts.
+- Não inclua nutrição, hidratação ou suplementação.
+- Ajuste volumes ao nível, idade, IMC, teste de 3km, prazo e distância.
+- Para ultramaratona, peakLongRunKm normalmente fica entre 55% e 75% da distância alvo, limitado por segurança.
+- Para iniciantes/sobrepeso, use progressão mais conservadora.
+`;
+  }
+
   async function callGeminiAPI(prompt, attempt = 1) {
     const response = await fetch(API_ENDPOINT, {
       method: 'POST',
@@ -170,7 +283,6 @@ IMPORTANTE:
         data.error ||
         `Erro na API (${response.status})`;
 
-      // Tratamento de Rate Limit
       if (response.status === 429 && attempt <= 2) {
         const waitTime = attempt * 10000;
         console.log(`Rate limited. Tentativa ${attempt}/2. Aguardando ${waitTime / 1000}s...`);
@@ -178,7 +290,6 @@ IMPORTANTE:
         return callGeminiAPI(prompt, attempt + 1);
       }
 
-      // Erro de configuração específico
       if (response.status === 500 && (errMsg.includes('API Key not configured') || errMsg.includes('Configuração incompleta'))) {
         throw new Error('Erro de configuração: A chave da IA não foi configurada no servidor Vercel.');
       }
@@ -189,22 +300,7 @@ IMPORTANTE:
     return data;
   }
 
-  async function generatePlan(userData) {
-    const prompt = buildPrompt(userData);
-    const data = await callGeminiAPI(prompt);
-    const text = data.text;
-
-    if (!text) {
-      console.error('Empty response. Full response:', data);
-      throw new Error('Resposta vazia da IA. Tente novamente.');
-    }
-
-    return parsePlanResponse(text, userData);
-  }
-
-  // ===== PARSE RESPONSE =====
-  function parsePlanResponse(text, userData) {
-    // Clean up: remove markdown code fences if present
+  function parseJSONResponse(text) {
     let cleaned = String(text || '').trim();
 
     cleaned = cleaned
@@ -220,62 +316,475 @@ IMPORTANTE:
       cleaned = cleaned.slice(firstBrace, lastBrace + 1);
     }
 
-    let plan;
+    return JSON.parse(cleaned);
+  }
+
+  async function generateBlueprint(userData) {
+    const prompt = buildBlueprintPrompt(userData);
+
     try {
-      plan = JSON.parse(cleaned);
-    } catch (e) {
-      console.error('Resposta bruta da IA:', text);
-      console.error('Resposta limpa:', cleaned);
-      console.error('Erro no JSON.parse:', e);
-      
-      // Tenta encontrar JSON no texto se o parse direto falhar
-      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        try {
-          plan = JSON.parse(jsonMatch[0]);
-        } catch {
-          throw new Error('Não foi possível interpretar a resposta da IA. Tente novamente.');
-        }
-      } else {
-        throw new Error('Resposta da IA não contém JSON válido. Tente novamente.');
-      }
+      const data = await callGeminiAPI(prompt);
+      if (!data.text) throw new Error('Resposta vazia da IA.');
+      const parsed = parseJSONResponse(data.text);
+      return normalizeBlueprint(parsed, userData, data.model || 'gemini');
+    } catch (error) {
+      console.warn('IA indisponível ou blueprint inválido. Usando blueprint local.', error);
+      return buildFallbackBlueprint(userData, error.message || 'fallback local');
+    }
+  }
+
+  function buildPhaseDistribution(totalWeeks, taperWeeks) {
+    const taper = clamp(Number(taperWeeks || 2), 1, Math.min(3, totalWeeks - 3));
+    const peakEnd = totalWeeks - taper;
+    const baseEnd = Math.max(2, Math.round(peakEnd * 0.38));
+    const resistanceEnd = Math.max(baseEnd + 1, Math.round(peakEnd * 0.78));
+
+    return [
+      { phase: 'Base', startWeek: 1, endWeek: baseEnd },
+      { phase: 'Resistência', startWeek: baseEnd + 1, endWeek: resistanceEnd },
+      { phase: 'Pico', startWeek: resistanceEnd + 1, endWeek: peakEnd },
+      { phase: 'Polimento', startWeek: peakEnd + 1, endWeek: totalWeeks }
+    ].filter(p => p.startWeek <= p.endWeek);
+  }
+
+  function buildFallbackBlueprint(userData, reason = '') {
+    const totalWeeks = calculateWeeks(userData.startDate, userData.raceDate);
+    const distanceKm = getDistanceKm(userData);
+    const days = clamp(Number(userData.daysPerWeek || 3), 2, 6);
+    const level = String(userData.level || 'iniciante').toLowerCase();
+    const imc = calculateIMC(userData);
+
+    const isBeginner = level.includes('inic') || level.includes('begin');
+    const isAdvanced = level.includes('av') || level.includes('avan');
+    const isUltra = distanceKm > 42;
+    const imcRisk = imc && imc >= 30 ? 0.85 : imc && imc >= 27 ? 0.93 : 1;
+
+    let initialLongRunKm;
+    let peakLongRunKm;
+
+    if (distanceKm <= 5) {
+      initialLongRunKm = isBeginner ? 3 : 5;
+      peakLongRunKm = isAdvanced ? 9 : 7;
+    } else if (distanceKm <= 10) {
+      initialLongRunKm = isBeginner ? 5 : 7;
+      peakLongRunKm = isAdvanced ? 16 : 13;
+    } else if (distanceKm <= 21.1) {
+      initialLongRunKm = isBeginner ? 7 : 10;
+      peakLongRunKm = isAdvanced ? 24 : 20;
+    } else if (distanceKm <= 42.2) {
+      initialLongRunKm = isBeginner ? 10 : 14;
+      peakLongRunKm = isAdvanced ? 34 : 30;
+    } else {
+      initialLongRunKm = isBeginner ? 10 : isAdvanced ? 18 : 14;
+      peakLongRunKm = clamp(Math.round(distanceKm * (isAdvanced ? 0.72 : isBeginner ? 0.58 : 0.65)), 28, 45);
     }
 
-    // Validate structure
-    if (!plan.weeks || !Array.isArray(plan.weeks) || plan.weeks.length === 0) {
-      throw new Error('Plano gerado está incompleto. Tente novamente.');
+    initialLongRunKm = Math.max(3, Math.round(initialLongRunKm * imcRisk));
+    peakLongRunKm = Math.max(initialLongRunKm + 4, Math.round(peakLongRunKm * imcRisk));
+
+    const longShareInitial = days <= 3 ? 0.42 : days === 4 ? 0.36 : 0.32;
+    const longSharePeak = days <= 3 ? 0.45 : days === 4 ? 0.38 : 0.34;
+
+    const initialWeeklyKm = Math.max(days * 3, Math.round(initialLongRunKm / longShareInitial));
+    const peakWeeklyKm = Math.max(initialWeeklyKm + 8, Math.round(peakLongRunKm / longSharePeak));
+    const taperWeeks = totalWeeks >= 18 ? 3 : 2;
+
+    return {
+      profile: {
+        riskLevel: imc && imc >= 30 ? 'alto' : imc && imc >= 27 ? 'moderado' : 'baixo',
+        fitnessLevel: isAdvanced ? 'avançado' : isBeginner ? 'iniciante' : 'intermediário',
+        mainLimitation: isUltra ? 'Resistência muscular e tolerância a volume' : 'Progressão gradual de volume'
+      },
+      strategy: {
+        initialWeeklyKm,
+        peakWeeklyKm,
+        initialLongRunKm,
+        peakLongRunKm,
+        recoveryEveryWeeks: isBeginner || (imc && imc >= 27) ? 3 : 4,
+        taperWeeks
+      },
+      paceZones: buildLocalPaceZones(userData),
+      phaseDistribution: buildPhaseDistribution(totalWeeks, taperWeeks),
+      source: reason ? `fallback: ${reason}` : 'fallback local'
+    };
+  }
+
+  function normalizeBlueprint(raw, userData, source = 'ai') {
+    const fallback = buildFallbackBlueprint(userData);
+    const totalWeeks = calculateWeeks(userData.startDate, userData.raceDate);
+    const distanceKm = getDistanceKm(userData);
+    const strategy = raw?.strategy || {};
+    const fallbackStrategy = fallback.strategy;
+
+    const taperWeeks = clamp(
+      Number(strategy.taperWeeks || fallbackStrategy.taperWeeks),
+      1,
+      Math.min(4, totalWeeks - 2)
+    );
+
+    let initialLongRunKm = clamp(
+      Number(strategy.initialLongRunKm || fallbackStrategy.initialLongRunKm),
+      2,
+      Math.max(3, distanceKm)
+    );
+
+    let peakLongRunKm = clamp(
+      Number(strategy.peakLongRunKm || fallbackStrategy.peakLongRunKm),
+      initialLongRunKm + 2,
+      distanceKm > 42 ? Math.min(48, distanceKm) : Math.max(distanceKm + 2, fallbackStrategy.peakLongRunKm + 4)
+    );
+
+    let initialWeeklyKm = clamp(
+      Number(strategy.initialWeeklyKm || fallbackStrategy.initialWeeklyKm),
+      initialLongRunKm + 4,
+      120
+    );
+
+    let peakWeeklyKm = clamp(
+      Number(strategy.peakWeeklyKm || fallbackStrategy.peakWeeklyKm),
+      initialWeeklyKm + 6,
+      140
+    );
+
+    if (peakWeeklyKm < peakLongRunKm + 8) peakWeeklyKm = peakLongRunKm + 8;
+
+    return {
+      profile: {
+        riskLevel: raw?.profile?.riskLevel || fallback.profile.riskLevel,
+        fitnessLevel: raw?.profile?.fitnessLevel || fallback.profile.fitnessLevel,
+        mainLimitation: raw?.profile?.mainLimitation || fallback.profile.mainLimitation
+      },
+      strategy: {
+        initialWeeklyKm: Math.round(initialWeeklyKm),
+        peakWeeklyKm: Math.round(peakWeeklyKm),
+        initialLongRunKm: Math.round(initialLongRunKm),
+        peakLongRunKm: Math.round(peakLongRunKm),
+        recoveryEveryWeeks: clamp(Number(strategy.recoveryEveryWeeks || fallbackStrategy.recoveryEveryWeeks), 3, 5),
+        taperWeeks
+      },
+      paceZones: {
+        ...fallback.paceZones,
+        ...(raw?.paceZones || {})
+      },
+      phaseDistribution: Array.isArray(raw?.phaseDistribution) && raw.phaseDistribution.length
+        ? normalizePhaseDistribution(raw.phaseDistribution, totalWeeks, taperWeeks)
+        : buildPhaseDistribution(totalWeeks, taperWeeks),
+      source
+    };
+  }
+
+  function normalizePhaseDistribution(phases, totalWeeks, taperWeeks) {
+    const allowed = ['Base', 'Resistência', 'Pico', 'Polimento'];
+    const clean = phases
+      .filter(Boolean)
+      .map(p => ({
+        phase: allowed.includes(p.phase) ? p.phase : 'Base',
+        startWeek: clamp(Number(p.startWeek || 1), 1, totalWeeks),
+        endWeek: clamp(Number(p.endWeek || totalWeeks), 1, totalWeeks)
+      }))
+      .filter(p => p.startWeek <= p.endWeek)
+      .sort((a, b) => a.startWeek - b.startWeek);
+
+    if (!clean.length || clean[0].startWeek !== 1 || clean[clean.length - 1].endWeek !== totalWeeks) {
+      return buildPhaseDistribution(totalWeeks, taperWeeks);
     }
 
-    // Ensure each week has required fields
-    plan.weeks.forEach((week, i) => {
-      if (!week.week) week.week = `S${i + 1}`;
-      if (!week.phase) week.phase = 'Base';
-      if (typeof week.off !== 'boolean') week.off = false;
-      if (!week.workouts || !Array.isArray(week.workouts)) week.workouts = [];
+    return clean;
+  }
 
-      week.workouts.forEach(w => {
-        if (!w.dayOfWeek) w.dayOfWeek = 'Terça';
-        if (!w.dayType) w.dayType = 'Base';
-        if (!w.title) w.title = 'Treino';
-        if (!w.desc) w.desc = '';
-        if (typeof w.km !== 'number') w.km = 0;
-        if (!w.pace) w.pace = '-';
-        if (!w.nutrition || typeof w.nutrition === 'string') {
-          w.nutrition = {
-            water: '500ml 2h antes',
-            pre: w.km > 15 ? 'Carboidratos 2h antes' : '1 banana 45min antes',
-            intra: w.km > 15 ? 'Gel a cada 45min' : 'Água conforme a sede',
-            post: 'Proteína e frutas'
-          };
-        }
-      });
+  // ===== PLAN ENGINE =====
+  function getPhaseForWeek(weekNumber, blueprint, totalWeeks) {
+    const phase = blueprint.phaseDistribution.find(p => weekNumber >= p.startWeek && weekNumber <= p.endWeek);
+    if (phase) return phase.phase;
+    if (weekNumber > totalWeeks - blueprint.strategy.taperWeeks) return 'Polimento';
+    return 'Base';
+  }
+
+  function interpolate(start, end, ratio) {
+    return start + (end - start) * clamp(ratio, 0, 1);
+  }
+
+  function calculateWeekTargets(weekNumber, totalWeeks, blueprint, distanceKm) {
+    const s = blueprint.strategy;
+    const phase = getPhaseForWeek(weekNumber, blueprint, totalWeeks);
+    const taperStart = totalWeeks - s.taperWeeks + 1;
+    const buildEnd = Math.max(1, taperStart - 1);
+    const buildRatio = buildEnd <= 1 ? 1 : (weekNumber - 1) / (buildEnd - 1);
+
+    let weeklyKm = interpolate(s.initialWeeklyKm, s.peakWeeklyKm, buildRatio);
+    let longRunKm = interpolate(s.initialLongRunKm, s.peakLongRunKm, buildRatio);
+    let isRecovery = false;
+
+    if (weekNumber < taperStart && weekNumber % s.recoveryEveryWeeks === 0) {
+      weeklyKm *= 0.72;
+      longRunKm *= 0.72;
+      isRecovery = true;
+    }
+
+    if (weekNumber >= taperStart) {
+      const taperPosition = weekNumber - taperStart;
+      const taperRatios = s.taperWeeks >= 3 ? [0.72, 0.52, 0.35, 0.25] : [0.60, 0.35, 0.25];
+      const ratio = taperRatios[taperPosition] ?? 0.35;
+      weeklyKm = Math.max(distanceKm, s.peakWeeklyKm * ratio);
+      longRunKm = weekNumber === totalWeeks ? distanceKm : Math.max(5, s.peakLongRunKm * ratio);
+      isRecovery = false;
+    }
+
+    if (weekNumber === totalWeeks) {
+      longRunKm = distanceKm;
+      weeklyKm = Math.max(distanceKm + 6, weeklyKm);
+    }
+
+    return {
+      phase,
+      off: isRecovery,
+      weeklyKm: roundKm(weeklyKm),
+      longRunKm: roundKm(longRunKm)
+    };
+  }
+
+  function getTrainingDays(daysPerWeek, startDOW, isFirstWeek = false) {
+    const days = Number(daysPerWeek || 3);
+    const preferredByCount = {
+      2: ['Terça', 'Sábado'],
+      3: ['Terça', 'Quinta', 'Sábado'],
+      4: ['Terça', 'Quinta', 'Sábado', 'Domingo'],
+      5: ['Segunda', 'Terça', 'Quinta', 'Sábado', 'Domingo'],
+      6: ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sábado', 'Domingo']
+    };
+
+    if (!isFirstWeek) return preferredByCount[clamp(days, 2, 6)] || preferredByCount[3];
+
+    const startIndex = MONDAY_INDEXED_DAYS.indexOf(startDOW);
+    if (startIndex === -1) return preferredByCount[clamp(days, 2, 6)] || preferredByCount[3];
+
+    const slots = [];
+    const remainingDays = 7 - startIndex;
+    const step = Math.max(1, Math.floor(Math.max(1, remainingDays - 1) / Math.max(1, days - 1)));
+
+    for (let i = 0; i < days; i++) {
+      const idx = Math.min(6, startIndex + i * step);
+      const name = MONDAY_INDEXED_DAYS[idx];
+      if (!slots.includes(name)) slots.push(name);
+    }
+
+    for (const d of MONDAY_INDEXED_DAYS) {
+      if (slots.length >= days) break;
+      if (!slots.includes(d)) slots.push(d);
+    }
+
+    return slots.slice(0, days);
+  }
+
+  function getWorkoutTemplate(phase, index, daysPerWeek, isRecovery, isRaceWeek, isLastWorkout) {
+    if (isRaceWeek && isLastWorkout) {
+      return { dayType: 'Longão', title: 'Prova alvo', desc: 'Execute a prova no ritmo planejado.' };
+    }
+
+    if (isRecovery) {
+      const recovery = [
+        { dayType: 'Recuperação', title: 'Rodagem leve', desc: 'Corrida fácil para absorver a carga.' },
+        { dayType: 'Base', title: 'Base leve', desc: 'Ritmo confortável, sem forçar.' },
+        { dayType: 'Longão', title: 'Longão reduzido', desc: 'Longão controlado em semana regenerativa.' }
+      ];
+      return recovery[Math.min(index, recovery.length - 1)];
+    }
+
+    const middleQuality = phase === 'Base'
+      ? { dayType: 'Qualidade', title: 'Fartlek leve', desc: 'Alternar blocos leves e moderados.' }
+      : phase === 'Resistência'
+        ? { dayType: 'Intervalado', title: 'Tiros controlados', desc: 'Intervalos fortes com boa recuperação.' }
+        : phase === 'Pico'
+          ? { dayType: 'Qualidade', title: 'Ritmo de prova', desc: 'Blocos no ritmo alvo da prova.' }
+          : { dayType: 'Base', title: 'Ativação leve', desc: 'Soltura curta sem gerar fadiga.' };
+
+    if (isLastWorkout) {
+      return { dayType: 'Longão', title: 'Longão progressivo', desc: 'Longão em ritmo leve a moderado.' };
+    }
+
+    if (daysPerWeek <= 3) {
+      return index === 0
+        ? { dayType: 'Base', title: 'Rodagem leve', desc: 'Corrida leve com controle de esforço.' }
+        : middleQuality;
+    }
+
+    const templates = [
+      { dayType: 'Base', title: 'Rodagem leve', desc: 'Corrida leve com controle de esforço.' },
+      middleQuality,
+      { dayType: 'Recuperação', title: 'Regenerativo', desc: 'Corrida muito leve para recuperar.' },
+      { dayType: 'Base', title: 'Base contínua', desc: 'Rodagem constante em ritmo confortável.' }
+    ];
+
+    return templates[Math.min(index, templates.length - 1)];
+  }
+
+  function paceForWorkout(dayType, blueprint) {
+    const zones = blueprint.paceZones || DEFAULT_PACE_ZONES;
+    if (dayType === 'Intervalado') return zones.interval || DEFAULT_PACE_ZONES.interval;
+    if (dayType === 'Qualidade') return zones.threshold || zones.moderate || DEFAULT_PACE_ZONES.threshold;
+    if (dayType === 'Longão') return zones.long || zones.easy || DEFAULT_PACE_ZONES.long;
+    if (dayType === 'Recuperação') return zones.easy || DEFAULT_PACE_ZONES.easy;
+    return zones.moderate || zones.easy || DEFAULT_PACE_ZONES.moderate;
+  }
+
+  function allocateWorkoutDistances(daysPerWeek, weeklyKm, longRunKm, isRaceWeek, distanceKm) {
+    const days = clamp(Number(daysPerWeek || 3), 2, 6);
+    const distances = [];
+
+    if (isRaceWeek) {
+      const remaining = Math.max(days - 1, 1);
+      const preRaceKm = Math.max(3, Math.round(Math.min(weeklyKm - distanceKm, 18) / remaining));
+      for (let i = 0; i < days - 1; i++) distances.push(preRaceKm);
+      distances.push(roundKm(distanceKm));
+      return distances;
+    }
+
+    const longKm = Math.min(roundKm(longRunKm), Math.max(1, weeklyKm - (days - 1) * 3));
+    const remainingKm = Math.max(days - 1, weeklyKm - longKm);
+
+    const weightsByDays = {
+      2: [1],
+      3: [0.45, 0.55],
+      4: [0.30, 0.35, 0.35],
+      5: [0.22, 0.28, 0.20, 0.30],
+      6: [0.18, 0.22, 0.16, 0.20, 0.24]
+    };
+
+    const weights = weightsByDays[days] || weightsByDays[3];
+    let accumulated = 0;
+
+    for (let i = 0; i < days - 1; i++) {
+      const isLastRegular = i === days - 2;
+      const km = isLastRegular ? Math.max(1, remainingKm - accumulated) : roundKm(remainingKm * weights[i]);
+      distances.push(km);
+      accumulated += km;
+    }
+
+    distances.push(longKm);
+    return distances.map(roundKm);
+  }
+
+  function generateWorkoutWeek({ weekNumber, totalWeeks, userData, blueprint }) {
+    const distanceKm = getDistanceKm(userData);
+    const daysPerWeek = clamp(Number(userData.daysPerWeek || 3), 2, 6);
+    const startDOW = getStartDayOfWeek(userData);
+    const isFirstWeek = weekNumber === 1;
+    const isRaceWeek = weekNumber === totalWeeks;
+    const targets = calculateWeekTargets(weekNumber, totalWeeks, blueprint, distanceKm);
+    const dayNames = getTrainingDays(daysPerWeek, startDOW, isFirstWeek);
+    const distances = allocateWorkoutDistances(daysPerWeek, targets.weeklyKm, targets.longRunKm, isRaceWeek, distanceKm);
+
+    const workouts = dayNames.map((dayOfWeek, index) => {
+      const isLastWorkout = index === dayNames.length - 1;
+      const template = getWorkoutTemplate(targets.phase, index, daysPerWeek, targets.off, isRaceWeek, isLastWorkout);
+      const pace = isRaceWeek && isLastWorkout
+        ? (blueprint.paceZones?.racePace || 'Ritmo de prova')
+        : paceForWorkout(template.dayType, blueprint);
+
+      return {
+        dayOfWeek,
+        dayType: template.dayType,
+        title: template.title,
+        desc: template.desc,
+        km: distances[index] || 0,
+        pace
+      };
     });
 
-    // Attach generation metadata
-    plan.generatedAt = new Date().toISOString();
-    plan.userData = userData;
+    return {
+      week: `S${weekNumber}`,
+      phase: targets.phase,
+      off: targets.off,
+      workouts
+    };
+  }
+
+  function validateAndFixPlan(plan, userData) {
+    const totalWeeks = calculateWeeks(userData.startDate, userData.raceDate);
+    const daysPerWeek = clamp(Number(userData.daysPerWeek || 3), 2, 6);
+
+    if (!plan.weeks || !Array.isArray(plan.weeks)) plan.weeks = [];
+
+    plan.weeks = plan.weeks.slice(0, totalWeeks).map((week, wi) => {
+      const clean = {
+        week: `S${wi + 1}`,
+        phase: week.phase || 'Base',
+        off: Boolean(week.off),
+        workouts: Array.isArray(week.workouts) ? week.workouts.slice(0, daysPerWeek) : []
+      };
+
+      clean.workouts = clean.workouts.map(w => ({
+        dayOfWeek: w.dayOfWeek || 'Terça',
+        dayType: w.dayType || 'Base',
+        title: w.title || 'Treino',
+        desc: w.desc || '',
+        km: roundKm(w.km),
+        pace: w.pace || '-'
+      }));
+
+      return clean;
+    });
+
+    if (plan.weeks.length !== totalWeeks) {
+      throw new Error('Falha ao montar todas as semanas do plano.');
+    }
 
     return plan;
+  }
+
+  async function generatePlan(userData) {
+    const totalWeeks = calculateWeeks(userData.startDate, userData.raceDate);
+    const distLabel = getDistanceLabel(userData);
+    const blueprint = await generateBlueprint(userData);
+
+    const weeks = [];
+    for (let weekNumber = 1; weekNumber <= totalWeeks; weekNumber++) {
+      weeks.push(generateWorkoutWeek({ weekNumber, totalWeeks, userData, blueprint }));
+    }
+
+    const plan = {
+      planName: `Plano ${distLabel} - ${userData.level || 'Personalizado'}`,
+      totalWeeks,
+      raceName: distLabel,
+      raceDistance: distLabel,
+      raceDate: userData.raceDate,
+      daysPerWeek: Number(userData.daysPerWeek || 3),
+      weeks,
+      blueprint,
+      generatedAt: new Date().toISOString(),
+      userData: {
+        ...userData,
+        imc: calculateIMC(userData) || userData.imc || null
+      }
+    };
+
+    return validateAndFixPlan(plan, plan.userData);
+  }
+
+  // Mantido por compatibilidade com códigos antigos/debug.
+  function buildPrompt(userData) {
+    return buildBlueprintPrompt(userData);
+  }
+
+  function parsePlanResponse(text, userData) {
+    const blueprint = normalizeBlueprint(parseJSONResponse(text), userData, 'manual');
+    const totalWeeks = calculateWeeks(userData.startDate, userData.raceDate);
+    const weeks = [];
+    for (let weekNumber = 1; weekNumber <= totalWeeks; weekNumber++) {
+      weeks.push(generateWorkoutWeek({ weekNumber, totalWeeks, userData, blueprint }));
+    }
+    return validateAndFixPlan({
+      planName: `Plano ${getDistanceLabel(userData)} - ${userData.level || 'Personalizado'}`,
+      totalWeeks,
+      raceName: getDistanceLabel(userData),
+      raceDistance: getDistanceLabel(userData),
+      raceDate: userData.raceDate,
+      daysPerWeek: Number(userData.daysPerWeek || 3),
+      weeks,
+      blueprint,
+      generatedAt: new Date().toISOString(),
+      userData
+    }, userData);
   }
 
   // ===== CONVERT AI PLAN TO APP FORMAT =====
@@ -286,7 +795,6 @@ IMPORTANTE:
     const startDate = parseLocalDate(plan.userData.startDate);
     startDate.setHours(0, 0, 0, 0);
 
-    // Find the Monday of the starting week to use as the base for day offsets
     const startDayOfWeek = startDate.getDay();
     const jsDayToMondayIndexed = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1;
     const week1Monday = new Date(startDate);
@@ -299,21 +807,20 @@ IMPORTANTE:
 
     const weeksData = plan.weeks.map((week, weekIndex) => {
       const weekStart = new Date(week1Monday);
-      weekStart.setDate(weekStart.getDate() + weekIndex * 7);
+      weekStart.setDate(week1Monday.getDate() + weekIndex * 7);
 
       const workouts = week.workouts.map(w => {
-        const dayOffset = dayMap[w.dayOfWeek] || 0;
+        const dayOffset = dayMap[w.dayOfWeek] ?? 0;
         const workoutDate = new Date(weekStart);
-        workoutDate.setDate(workoutDate.getDate() + dayOffset);
+        workoutDate.setDate(weekStart.getDate() + dayOffset);
 
         return {
           dayOfWeek: w.dayOfWeek,
           dayType: w.dayType,
           title: w.title,
           desc: w.desc,
-          km: w.km,
+          km: Number(w.km || 0),
           pace: w.pace,
-          nutrition: w.nutrition,
           date: workoutDate
         };
       });
@@ -324,7 +831,7 @@ IMPORTANTE:
         off: week.off,
         weekIndex,
         workouts,
-        totalKm: workouts.reduce((s, w) => s + w.km, 0)
+        totalKm: workouts.reduce((s, w) => s + Number(w.km || 0), 0)
       };
     });
 
@@ -332,11 +839,12 @@ IMPORTANTE:
       startDate: startDate.toISOString(),
       raceDate: raceDate.toISOString(),
       raceName: plan.raceName || 'Prova',
-      raceDistance: (plan.userData.targetDistance === 'custom' || plan.userData.targetDistance === 'ultra') ? parseInt(plan.userData.customDistance) : parseInt(plan.userData.targetDistance) || 42,
+      raceDistance: getDistanceKm(plan.userData),
       planName: plan.planName || 'Plano Personalizado',
       daysPerWeek: plan.daysPerWeek || 3,
       totalWeeks: weeksData.length,
       weeks: weeksData,
+      blueprint: plan.blueprint || null,
       generatedAt: plan.generatedAt,
       userData: plan.userData
     };
@@ -352,7 +860,9 @@ IMPORTANTE:
   function loadPlan() {
     try {
       return JSON.parse(localStorage.getItem(getPlanKey()) || 'null');
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }
 
   function clearPlan() {
@@ -404,8 +914,7 @@ IMPORTANTE:
           title: w.title,
           desc: w.desc,
           km: w.km,
-          pace: w.pace,
-          nutrition: w.nutrition,
+          pace: w.pace
         });
       });
     });
@@ -432,6 +941,8 @@ IMPORTANTE:
     unadoptPlan,
     isPlanAdopted,
     getAdoptedWorkouts,
-    calculateWeeks
+    calculateWeeks,
+    buildPrompt,
+    parsePlanResponse
   };
 })();
