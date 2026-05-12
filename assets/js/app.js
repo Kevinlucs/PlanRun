@@ -2158,10 +2158,18 @@ function openWeeklyCheckin(weekIndex) {
     </div>
   `;
 
+  const cancelBtn = document.getElementById('modal-cancel');
+  const confirmBtn = document.getElementById('modal-confirm');
+
+  cancelBtn.classList.remove('hidden');
+  cancelBtn.textContent = 'Cancelar';
+  confirmBtn.textContent = 'Confirmar';
+  confirmBtn.disabled = false;
+
   document.getElementById('modal-overlay').classList.remove('hidden');
-  document.getElementById('modal-confirm').onclick = async () => {
-    const confirmBtn = document.getElementById('modal-confirm');
+  confirmBtn.onclick = async () => {
     const originalText = confirmBtn.textContent;
+    let resultPayload = null;
 
     const feedback = {
       feeling: document.getElementById('checkin-feeling')?.value || 'normal',
@@ -2185,9 +2193,9 @@ function openWeeklyCheckin(weekIndex) {
       };
 
       saveWeeklyCheckins();
-      document.getElementById('modal-overlay').classList.add('hidden');
       renderHome();
       renderStats();
+      resultPayload = { feedback, adjustment };
     } catch (error) {
       console.error('Erro no check-in inteligente:', error);
       showToast('Não foi possível concluir o check-in. Tente novamente.', 'error');
@@ -2195,11 +2203,114 @@ function openWeeklyCheckin(weekIndex) {
       confirmBtn.disabled = false;
       confirmBtn.textContent = originalText;
     }
+
+    if (resultPayload) {
+      showWeeklyCheckinResultModal(weekIndex, resultPayload.feedback, resultPayload.adjustment);
+    }
   };
-  document.getElementById('modal-cancel').onclick = () => {
+  cancelBtn.onclick = () => {
     document.getElementById('modal-overlay').classList.add('hidden');
   };
 }
+
+
+function getFeelingLabel(feeling) {
+  const labels = {
+    leve: 'Leve',
+    normal: 'Normal',
+    pesado: 'Pesada',
+    muito_pesado: 'Muito pesada'
+  };
+
+  return labels[feeling] || 'Normal';
+}
+
+function getAdjustmentPercentLabel(adjustment) {
+  if (!adjustment || !adjustment.factor) return '0%';
+
+  const diff = Math.round((Number(adjustment.factor) - 1) * 100);
+  if (diff === 0) return '0%';
+
+  return `${diff > 0 ? '+' : ''}${diff}%`;
+}
+
+function showWeeklyCheckinResultModal(weekIndex, feedback, adjustment) {
+  const summary = feedback.summary || getWeekSummary(weekIndex);
+  const weekLabel = summary.workouts?.[0]?.week || adjustment.week || `S${weekIndex + 1}`;
+  const sourceLabel = adjustment.source === 'ai'
+    ? '🧠 Análise do Coach IA'
+    : '⚙️ Ajuste automático local';
+
+  const completionPercent = summary.total
+    ? Math.round((summary.resolved / summary.total) * 100)
+    : 0;
+
+  document.getElementById('modal-icon').textContent = adjustment.source === 'ai' ? '🧠' : '✅';
+  document.getElementById('modal-title').textContent = `Feedback da ${weekLabel}`;
+  document.getElementById('modal-message').innerHTML = `
+    <div class="checkin-feedback-modal">
+      <div class="checkin-feedback-hero">
+        <span class="checkin-source ${adjustment.source === 'ai' ? 'ai' : 'local'}">${sourceLabel}</span>
+        <h4>${escapeHTML(adjustment.title || 'Check-in registrado')}</h4>
+        <p>${escapeHTML(adjustment.message || 'Semana registrada com sucesso.')}</p>
+      </div>
+
+      <div class="checkin-feedback-grid">
+        <div>
+          <span>Aderência</span>
+          <strong>${completionPercent}%</strong>
+        </div>
+        <div>
+          <span>Km realizado</span>
+          <strong>${summary.completedKm || 0}/${Math.round(summary.plannedKm || 0)} km</strong>
+        </div>
+        <div>
+          <span>Esforço</span>
+          <strong>${feedback.effort || summary.averageEffort || '-'}/10</strong>
+        </div>
+        <div>
+          <span>Sensação</span>
+          <strong>${getFeelingLabel(feedback.feeling)}</strong>
+        </div>
+        <div>
+          <span>Dor/incômodo</span>
+          <strong>${feedback.pain ? 'Sim' : 'Não'}</strong>
+        </div>
+        <div>
+          <span>Ajuste aplicado</span>
+          <strong>${getAdjustmentPercentLabel(adjustment)}</strong>
+        </div>
+      </div>
+
+      <div class="checkin-feedback-note">
+        <strong>Leitura técnica</strong>
+        <p>${escapeHTML(adjustment.reason || adjustment.message || 'Check-in salvo no histórico.')}</p>
+        ${adjustment.coachTip ? `<p><strong>Dica:</strong> ${escapeHTML(adjustment.coachTip)}</p>` : ''}
+        <small>A análise completa continua disponível na aba Stats.</small>
+      </div>
+    </div>
+  `;
+
+  const cancelBtn = document.getElementById('modal-cancel');
+  const confirmBtn = document.getElementById('modal-confirm');
+
+  cancelBtn.classList.remove('hidden');
+  cancelBtn.textContent = 'Ver Stats';
+  cancelBtn.onclick = () => {
+    document.getElementById('modal-overlay').classList.add('hidden');
+    showPage('stats');
+  };
+
+  confirmBtn.disabled = false;
+  confirmBtn.textContent = 'Entendi';
+  confirmBtn.onclick = () => {
+    document.getElementById('modal-overlay').classList.add('hidden');
+    cancelBtn.textContent = 'Cancelar';
+  };
+
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+
 
 
 function getLocalAdjustmentRecommendation(weekIndex, feedback) {

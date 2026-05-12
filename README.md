@@ -165,3 +165,7 @@ Nesta versão, o Adaptive Training Engine passou a consultar o Coach IA no fecha
 5. Se a IA falhar, o motor local continua funcionando normalmente.
 
 A IA não reescreve a planilha inteira; ela apenas interpreta o check-in e justifica o ajuste semanal.
+
+### Check-in Feedback Instantâneo
+
+Após o atleta responder o check-in semanal, o app agora exibe imediatamente um feedback do Coach IA ou da regra local, com aderência, km realizado, esforço, sensação, dor/incômodo e ajuste aplicado. A análise completa permanece na aba Stats.
