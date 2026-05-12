@@ -5574,3 +5574,50 @@ input[type="date"].ai-input {
     min-height: auto;
   }
 }
+
+
+/* ===== PROFILE FINAL ORDER + NAME ALIGNMENT V37 ===== */
+.settings-hero h2 {
+  font-size: clamp(1.55rem, 3vw, 2.15rem);
+}
+
+.settings-hero p {
+  max-width: 780px;
+}
+
+.settings-form-grid.profile-only > label {
+  min-height: 96px;
+  padding: 12px;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  justify-content: center;
+}
+
+.settings-form-grid.profile-only > label .settings-input {
+  margin-top: 2px;
+}
+
+.settings-form-grid.profile-only .settings-readonly-field {
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+@media (min-width: 768px) {
+  .settings-profile-editor-layout {
+    grid-template-columns: minmax(360px, 0.95fr) minmax(0, 1.05fr);
+  }
+
+  .settings-photo-editor.compact {
+    min-height: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .settings-form-grid.profile-only > label,
+  .settings-form-grid.profile-only .settings-readonly-field {
+    min-height: auto;
+  }
+}

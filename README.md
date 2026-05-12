@@ -341,3 +341,13 @@ O dashboard usa os dados reais do plano ativo, status dos treinos, feedbacks e c
 - Card de foto centralizado para ocupar melhor o espaço do grid esquerdo.
 - Label/campo de nome alinhado ao padrão dos demais cards no desktop e mobile.
 - Cache atualizado para `planrun-v36`.
+
+
+## Perfil final - v37
+
+- Título da aba alterado de “Perfil do Atleta” para “Perfil”.
+- Dados pessoais agora aparecem antes da Planilha atual.
+- Planilha atual foi movida para baixo.
+- Campo “Nome do atleta” alinhado visualmente com os demais cards.
+- Ajuste responsivo aplicado para web e mobile.
+- Cache atualizado para `planrun-v37`.

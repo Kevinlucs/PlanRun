@@ -304,32 +304,13 @@
             <div class="settings-container">
                 <div class="settings-hero">
                     <div class="settings-hero-copy">
-                        <h2>Perfil do Atleta</h2>
-                        <p>Atualize foto e nome do atleta. O peso fica bloqueado aqui e é atualizado no check-in a cada 4 semanas.</p>
+                        <h2>Perfil</h2>
+                        <p>Atualize foto e nome. O peso fica bloqueado aqui e é atualizado no check-in a cada 4 semanas.</p>
                     </div>
                     <button class="settings-logout-mobile" onclick="handleLogout()">Sair</button>
                 </div>
 
                 <div class="settings-grid refined">
-                    <section class="settings-card settings-card-plan wide">
-                        <div class="settings-card-header">
-                            <div>
-                                <span>Planilha atual</span>
-                                <h3>Resumo técnico</h3>
-                            </div>
-                            <button class="settings-mini-btn" onclick="showPage('ai')">IA Coach</button>
-                        </div>
-
-                        <div class="settings-plan-grid compact">
-                            <div><span>Nome</span><strong id="settings-plan-name">Sem plano</strong></div>
-                            <div><span>Prova</span><strong id="settings-race-name">-</strong></div>
-                            <div><span>Semanas</span><strong id="settings-plan-weeks">0</strong></div>
-                            <div><span>Treinos totais</span><strong id="settings-plan-workouts">0</strong></div>
-                            <div><span>Objetivo</span><strong id="settings-objective-readonly">Não definido</strong></div>
-                            <div><span>Status</span><strong id="settings-adopted">-</strong></div>
-                        </div>
-                    </section>
-
                     <section class="settings-card wide">
                         <div class="settings-card-header">
                             <div>
@@ -391,6 +372,25 @@
                         <p class="settings-help">
                             Nesta tela você altera foto e nome. O peso é travado aqui e só muda no check-in obrigatório a cada 4 semanas.
                         </p>
+                    </section>
+
+                    <section class="settings-card settings-card-plan wide">
+                        <div class="settings-card-header">
+                            <div>
+                                <span>Planilha atual</span>
+                                <h3>Resumo técnico</h3>
+                            </div>
+                            <button class="settings-mini-btn" onclick="showPage('ai')">IA Coach</button>
+                        </div>
+
+                        <div class="settings-plan-grid compact">
+                            <div><span>Nome</span><strong id="settings-plan-name">Sem plano</strong></div>
+                            <div><span>Prova</span><strong id="settings-race-name">-</strong></div>
+                            <div><span>Semanas</span><strong id="settings-plan-weeks">0</strong></div>
+                            <div><span>Treinos totais</span><strong id="settings-plan-workouts">0</strong></div>
+                            <div><span>Objetivo</span><strong id="settings-objective-readonly">Não definido</strong></div>
+                            <div><span>Status</span><strong id="settings-adopted">-</strong></div>
+                        </div>
                     </section>
                 </div>
             </div>
