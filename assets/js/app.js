@@ -3732,20 +3732,124 @@ document.getElementById('modal-overlay').addEventListener('click', (e) => {
   if (e.target === e.currentTarget) e.currentTarget.classList.add('hidden');
 });
 
-// ===== LOGIN SYSTEM =====
-const ALLOWED_USERS = typeof CONFIG !== 'undefined' ? CONFIG.ALLOWED_USERS : {};
 
+// ===== USER PROFILE MANAGER =====
+function updateHeaderUser() {
+  if (typeof UserProfileService === 'undefined' || typeof StorageService === 'undefined') return;
+
+  const profile = UserProfileService.getCurrentProfile();
+  const avatarEl = document.getElementById('header-user-avatar');
+  const nameEl = document.getElementById('header-user-name');
+  const roleEl = document.getElementById('header-user-role');
+
+  if (!profile) {
+    if (avatarEl) avatarEl.textContent = 'A';
+    if (nameEl) nameEl.textContent = 'Atleta';
+    if (roleEl) roleEl.textContent = 'Perfil';
+    return;
+  }
+
+  if (avatarEl) avatarEl.textContent = profile.avatar || profile.displayName.charAt(0).toUpperCase();
+  if (nameEl) nameEl.textContent = profile.displayName || profile.username;
+  if (roleEl) roleEl.textContent = UserProfileService.getRoleLabel(profile.role);
+}
+
+function openUserProfilePanel() {
+  const profile = typeof UserProfileService !== 'undefined' ? UserProfileService.getCurrentProfile() : null;
+  const summary = typeof StorageService !== 'undefined' && StorageService.getUserStorageSummary
+    ? StorageService.getUserStorageSummary()
+    : {};
+
+  if (!profile) return;
+
+  document.getElementById('modal-icon').textContent = profile.avatar || '🏃';
+  document.getElementById('modal-title').textContent = 'Perfil do Atleta';
+  document.getElementById('modal-message').innerHTML = `
+    <div class="profile-manager-card">
+      <div class="profile-manager-head">
+        <div class="profile-manager-avatar">${escapeHTML(profile.avatar || 'A')}</div>
+        <div>
+          <strong>${escapeHTML(profile.displayName)}</strong>
+          <span>${escapeHTML(UserProfileService.getRoleLabel(profile.role))} • ${escapeHTML(profile.username)}</span>
+        </div>
+      </div>
+
+      <div class="profile-manager-goal">
+        <span>Objetivo</span>
+        <p>${escapeHTML(profile.goal || 'Objetivo ainda não definido no config.')}</p>
+      </div>
+
+      <div class="profile-manager-grid">
+        <div><span>Plano</span><strong>${summary.hasPlan ? 'Criado' : 'Sem plano'}</strong></div>
+        <div><span>Adotado</span><strong>${summary.isAdopted ? 'Sim' : 'Não'}</strong></div>
+        <div><span>Semanas</span><strong>${summary.planWeeks || 0}</strong></div>
+        <div><span>Treinos</span><strong>${summary.planWorkouts || 0}</strong></div>
+        <div><span>Check-ins</span><strong>${summary.checkinCount || 0}</strong></div>
+        <div><span>Ajustes</span><strong>${summary.adjustmentCount || 0}</strong></div>
+      </div>
+
+      <small class="profile-manager-note">Os dados deste atleta ficam isolados no Storage Service. Futuramente essa camada pode ser migrada para Supabase sem reescrever o app inteiro.</small>
+    </div>
+  `;
+
+  const cancelBtn = document.getElementById('modal-cancel');
+  const confirmBtn = document.getElementById('modal-confirm');
+
+  cancelBtn.classList.remove('hidden');
+  cancelBtn.textContent = 'Fechar';
+  cancelBtn.onclick = () => document.getElementById('modal-overlay').classList.add('hidden');
+
+  confirmBtn.textContent = 'Sair';
+  confirmBtn.onclick = () => {
+    document.getElementById('modal-overlay').classList.add('hidden');
+    handleLogout();
+  };
+
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+
+function handleLogout() {
+  if (typeof StorageService !== 'undefined') StorageService.logout();
+
+  pageHistory.length = 0;
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('login-screen').classList.remove('hidden');
+
+  const userInput = document.getElementById('login-username');
+  const passInput = document.getElementById('login-password');
+  const errorEl = document.getElementById('login-error');
+
+  if (userInput) userInput.value = '';
+  if (passInput) passInput.value = '';
+  if (errorEl) errorEl.classList.add('hidden');
+}
+
+function finishLogin(user) {
+  StorageService.login(user);
+  reloadUserAdaptiveState();
+  applyAdoptedPlan();
+  updateHeaderUser();
+
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+
+  renderHome();
+  renderPhases();
+  renderStats();
+  updateAdoptedBanner();
+}
+
+
+// ===== LOGIN SYSTEM =====
 document.getElementById('login-form').addEventListener('submit', (e) => {
   e.preventDefault();
-  const user = document.getElementById('login-username').value.trim().toLowerCase();
+
+  const user = UserProfileService.normalizeUsername(document.getElementById('login-username').value);
   const pass = document.getElementById('login-password').value.trim();
   const errorEl = document.getElementById('login-error');
 
-  if (ALLOWED_USERS[user] && ALLOWED_USERS[user] === pass) {
-    StorageService.login(user);
-    reloadUserAdaptiveState();
-    document.getElementById('login-screen').classList.add('hidden');
-    document.getElementById('app').classList.remove('hidden');
+  if (UserProfileService.validateCredentials(user, pass)) {
+    finishLogin(user);
   } else {
     errorEl.classList.remove('hidden');
   }
@@ -3788,6 +3892,8 @@ window.addEventListener('load', () => {
     } else {
       document.getElementById('app').classList.remove('hidden');
       reloadUserAdaptiveState();
+      applyAdoptedPlan();
+      updateHeaderUser();
     }
 
     renderHome();

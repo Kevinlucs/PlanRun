@@ -265,3 +265,15 @@ O dashboard usa os dados reais do plano ativo, status dos treinos, feedbacks e c
 - Para Ultra/Personalizado, o campo “Distância (km)” aparece ao lado no desktop e empilha corretamente no mobile.
 - Regras CSS reforçadas com responsividade web/mobile.
 - Cache atualizado para `planrun-v29`.
+
+
+## User/Profile Manager - v30
+
+- Adicionada camada `assets/js/user-profile-service.js`.
+- Usuários agora têm perfil com nome, papel, objetivo e avatar.
+- Header mostra o atleta logado no desktop e mobile.
+- Adicionado botão de sair.
+- Modal de perfil mostra plano, semanas, treinos, check-ins e ajustes do usuário atual.
+- Login passou a validar pelo `UserProfileService`, mantendo compatibilidade com `CONFIG.ALLOWED_USERS`.
+- `config/config.js` agora suporta `USER_PROFILES`.
+- Cache atualizado para `planrun-v30`.

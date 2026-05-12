@@ -76,9 +76,17 @@
                 <h1 class="header-title">PLAN <span>RUN</span></h1>
             </div>
             <div class="header-right">
+                <button id="header-user-profile" class="header-user-profile" onclick="openUserProfilePanel()" title="Perfil do atleta">
+                    <span id="header-user-avatar" class="header-user-avatar">A</span>
+                    <span class="header-user-text">
+                        <strong id="header-user-name">Atleta</strong>
+                        <small id="header-user-role">Perfil</small>
+                    </span>
+                </button>
                 <div id="header-stats" class="header-stats">
                     <span id="total-km" class="stat-km">0 km</span>
                 </div>
+                <button class="header-logout-btn" onclick="handleLogout()" title="Sair">Sair</button>
             </div>
         </header>
 
@@ -564,6 +572,7 @@
 
     <script src="config/config.js"></script>
     <script src="assets/js/storage-service.js"></script>
+    <script src="assets/js/user-profile-service.js"></script>
     <script src="assets/js/ai-coach.js"></script>
     <script src="assets/js/app.js"></script>
     <script>

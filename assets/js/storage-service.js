@@ -66,7 +66,28 @@ const StorageService = (() => {
   }
 
   function getKeys(user = getCurrentUser()) {
+  
+  function getUserStorageSummary() {
+    const snapshot = getUserSnapshot();
+    const planWeeks = Array.isArray(snapshot.plan?.weeks) ? snapshot.plan.weeks.length : 0;
+    const planWorkouts = Array.isArray(snapshot.plan?.weeks)
+      ? snapshot.plan.weeks.reduce((sum, week) => sum + (Array.isArray(week.workouts) ? week.workouts.length : 0), 0)
+      : 0;
+
     return {
+      user: snapshot.user,
+      hasPlan: Boolean(snapshot.plan),
+      isAdopted: snapshot.isAdopted,
+      planWeeks,
+      planWorkouts,
+      completedCount: Object.keys(snapshot.completedWorkouts || {}).filter(key => snapshot.completedWorkouts[key]).length,
+      feedbackCount: Object.keys(snapshot.workoutFeedback || {}).length,
+      checkinCount: Object.keys(snapshot.weeklyCheckins || {}).length,
+      adjustmentCount: Array.isArray(snapshot.adjustmentHistory) ? snapshot.adjustmentHistory.length : 0
+    };
+  }
+
+  return {
       currentUser: `${APP}_current_user`,
       loggedIn: `${APP}_logged_in`,
       completed: userKey('completed_workouts', user),
@@ -171,7 +192,28 @@ const StorageService = (() => {
   }
 
   function getUserSnapshot() {
+  
+  function getUserStorageSummary() {
+    const snapshot = getUserSnapshot();
+    const planWeeks = Array.isArray(snapshot.plan?.weeks) ? snapshot.plan.weeks.length : 0;
+    const planWorkouts = Array.isArray(snapshot.plan?.weeks)
+      ? snapshot.plan.weeks.reduce((sum, week) => sum + (Array.isArray(week.workouts) ? week.workouts.length : 0), 0)
+      : 0;
+
     return {
+      user: snapshot.user,
+      hasPlan: Boolean(snapshot.plan),
+      isAdopted: snapshot.isAdopted,
+      planWeeks,
+      planWorkouts,
+      completedCount: Object.keys(snapshot.completedWorkouts || {}).filter(key => snapshot.completedWorkouts[key]).length,
+      feedbackCount: Object.keys(snapshot.workoutFeedback || {}).length,
+      checkinCount: Object.keys(snapshot.weeklyCheckins || {}).length,
+      adjustmentCount: Array.isArray(snapshot.adjustmentHistory) ? snapshot.adjustmentHistory.length : 0
+    };
+  }
+
+  return {
       schemaVersion: SCHEMA_VERSION,
       exportedAt: new Date().toISOString(),
       user: getCurrentUser(),
@@ -194,6 +236,27 @@ const StorageService = (() => {
     saveWeeklyCheckins(payload.weeklyCheckins || {});
     saveAdjustmentHistory(payload.adjustmentHistory || []);
     return true;
+  }
+
+
+  function getUserStorageSummary() {
+    const snapshot = getUserSnapshot();
+    const planWeeks = Array.isArray(snapshot.plan?.weeks) ? snapshot.plan.weeks.length : 0;
+    const planWorkouts = Array.isArray(snapshot.plan?.weeks)
+      ? snapshot.plan.weeks.reduce((sum, week) => sum + (Array.isArray(week.workouts) ? week.workouts.length : 0), 0)
+      : 0;
+
+    return {
+      user: snapshot.user,
+      hasPlan: Boolean(snapshot.plan),
+      isAdopted: snapshot.isAdopted,
+      planWeeks,
+      planWorkouts,
+      completedCount: Object.keys(snapshot.completedWorkouts || {}).filter(key => snapshot.completedWorkouts[key]).length,
+      feedbackCount: Object.keys(snapshot.workoutFeedback || {}).length,
+      checkinCount: Object.keys(snapshot.weeklyCheckins || {}).length,
+      adjustmentCount: Array.isArray(snapshot.adjustmentHistory) ? snapshot.adjustmentHistory.length : 0
+    };
   }
 
   return {
@@ -226,6 +289,7 @@ const StorageService = (() => {
     setPlanAdopted,
     clearAdaptiveData,
     getUserSnapshot,
+    getUserStorageSummary,
     applyUserSnapshot
   };
 })();
