@@ -3997,6 +3997,12 @@ function removeProfilePhoto() {
 }
 
 
+function goToProfilePage() {
+  pageHistory.length = 0;
+  showPage('settings');
+  renderSettingsPage();
+}
+
 // ===== USER PROFILE MANAGER =====
 function updateHeaderUser() {
   if (typeof UserProfileService === 'undefined' || typeof StorageService === 'undefined') return;
@@ -4019,57 +4025,7 @@ function updateHeaderUser() {
 }
 
 function openUserProfilePanel() {
-  const profile = typeof UserProfileService !== 'undefined' ? UserProfileService.getCurrentProfile() : null;
-  const summary = typeof StorageService !== 'undefined' && StorageService.getUserStorageSummary
-    ? StorageService.getUserStorageSummary()
-    : {};
-
-  if (!profile) return;
-
-  document.getElementById('modal-icon').textContent = profile.avatar || '🏃';
-  document.getElementById('modal-title').textContent = 'Perfil do Atleta';
-  document.getElementById('modal-message').innerHTML = `
-    <div class="profile-manager-card">
-      <div class="profile-manager-head">
-        <div class="profile-manager-avatar ${profile.photo ? 'has-photo' : ''}" ${profile.photo ? `style="background-image:url('${profile.photo}')"` : ''}>${profile.photo ? '' : escapeHTML(profile.avatar || 'A')}</div>
-        <div>
-          <strong>${escapeHTML(profile.displayName)}</strong>
-          <span>${escapeHTML(UserProfileService.getRoleLabel(profile.role))} • ${escapeHTML(profile.username)}</span>
-        </div>
-      </div>
-
-      <div class="profile-manager-goal">
-        <span>Objetivo</span>
-        <p>${escapeHTML(profile.goal || 'Objetivo ainda não definido no config.')}</p>
-      </div>
-
-      <div class="profile-manager-grid">
-        <div><span>Plano</span><strong>${summary.hasPlan ? 'Criado' : 'Sem plano'}</strong></div>
-        <div><span>Adotado</span><strong>${summary.isAdopted ? 'Sim' : 'Não'}</strong></div>
-        <div><span>Semanas</span><strong>${summary.planWeeks || 0}</strong></div>
-        <div><span>Treinos</span><strong>${summary.planWorkouts || 0}</strong></div>
-        <div><span>Check-ins</span><strong>${summary.checkinCount || 0}</strong></div>
-        <div><span>Ajustes</span><strong>${summary.adjustmentCount || 0}</strong></div>
-      </div>
-
-      <small class="profile-manager-note">Os dados deste atleta ficam isolados no Storage Service. Futuramente essa camada pode ser migrada para Supabase sem reescrever o app inteiro.</small>
-    </div>
-  `;
-
-  const cancelBtn = document.getElementById('modal-cancel');
-  const confirmBtn = document.getElementById('modal-confirm');
-
-  cancelBtn.classList.remove('hidden');
-  cancelBtn.textContent = 'Fechar';
-  cancelBtn.onclick = () => document.getElementById('modal-overlay').classList.add('hidden');
-
-  confirmBtn.textContent = 'Sair';
-  confirmBtn.onclick = () => {
-    document.getElementById('modal-overlay').classList.add('hidden');
-    handleLogout();
-  };
-
-  document.getElementById('modal-overlay').classList.remove('hidden');
+  goToProfilePage();
 }
 
 function handleLogout() {

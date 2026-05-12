@@ -331,3 +331,13 @@ O dashboard usa os dados reais do plano ativo, status dos treinos, feedbacks e c
 - Navegação reordenada: Início | Treinos | IA Coach | Estatísticas | Perfil.
 - “Stats” virou “Estatísticas”; “Ajustes” virou “Perfil”.
 - Cache atualizado para `planrun-v35`.
+
+
+## Polimento final da aba Perfil - v36
+
+- Removida redundância do título superior da página Perfil do Atleta.
+- Clique no chip/avatar do header agora redireciona para a aba Perfil em vez de abrir modal.
+- Modal antigo de perfil foi desativado.
+- Card de foto centralizado para ocupar melhor o espaço do grid esquerdo.
+- Label/campo de nome alinhado ao padrão dos demais cards no desktop e mobile.
+- Cache atualizado para `planrun-v36`.

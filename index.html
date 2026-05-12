@@ -76,7 +76,7 @@
                 <h1 class="header-title">PLAN <span>RUN</span></h1>
             </div>
             <div class="header-right">
-                <button id="header-user-profile" class="header-user-profile" onclick="openUserProfilePanel()" title="Perfil do atleta">
+                <button id="header-user-profile" class="header-user-profile" onclick="goToProfilePage()" title="Perfil do atleta">
                     <span id="header-user-avatar" class="header-user-avatar">A</span>
                     <span class="header-user-text">
                         <strong id="header-user-name">Atleta</strong>
@@ -303,10 +303,9 @@
         <main id="page-settings" class="page">
             <div class="settings-container">
                 <div class="settings-hero">
-                    <div>
-                        <span class="settings-eyebrow">Perfil do atleta</span>
+                    <div class="settings-hero-copy">
                         <h2>Perfil do Atleta</h2>
-                        <p>Atualize foto e nome do atleta. O peso é atualizado somente no check-in a cada 4 semanas.</p>
+                        <p>Atualize foto e nome do atleta. O peso fica bloqueado aqui e é atualizado no check-in a cada 4 semanas.</p>
                     </div>
                     <button class="settings-logout-mobile" onclick="handleLogout()">Sair</button>
                 </div>
