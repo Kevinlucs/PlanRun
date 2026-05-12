@@ -50,7 +50,7 @@ const UserProfileService = (() => {
       age: localProfile.age || '',
       height: localProfile.height || '',
       weight: localProfile.weight || '',
-      team: profile.team || 'PlanRun',
+      team: profile.team || 'RUINNA',
       notes: profile.notes || '',
       localProfile
     };

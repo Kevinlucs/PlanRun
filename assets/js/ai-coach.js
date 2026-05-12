@@ -1,6 +1,6 @@
 // ===== AI COACH MODULE =====
 // IA = gestora estratégica. Código = motor determinístico da planilha.
-// A IA gera um blueprint pequeno; o PlanRun monta todas as semanas localmente.
+// A IA gera um blueprint pequeno; o RUINNA monta todas as semanas localmente.
 
 const AICoach = (() => {
   function getPlanKey() { return StorageService.keys().plan; }

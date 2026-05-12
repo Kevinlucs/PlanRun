@@ -772,7 +772,7 @@ function renderAdjustmentTimeline(rows) {
       ${adjustedRows.map(row => {
         const action = row.adjustment?.action || 'maintain';
         const source = row.checkin?.feedbackSource === 'ai' ? 'Coach IA' : row.checkin ? 'Regra local' : 'Sistema';
-        const message = row.checkin?.aiFeedback?.messageToUser || row.checkin?.resultMessage || row.adjustment?.reason || 'Semana analisada pelo PlanRun.';
+        const message = row.checkin?.aiFeedback?.messageToUser || row.checkin?.resultMessage || row.adjustment?.reason || 'Semana analisada pelo RUINNA.';
 
         return `
           <div class="adjustment-compact-row ${action}">
@@ -1120,13 +1120,13 @@ function renderEvolutionHistory() {
 
 // ===== EXPORT & BACKUP ENGINE =====
 function sanitizeFileName(value) {
-  return String(value || 'planrun')
+  return String(value || 'ruinna')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9-_]+/gi, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
-    .toLowerCase() || 'planrun';
+    .toLowerCase() || 'ruinna';
 }
 
 function getTodayFileStamp() {
@@ -1152,7 +1152,7 @@ function setExportBackupStatus(message) {
 
 function getExportPlanName() {
   const plan = AICoach.loadPlan();
-  return plan?.planName || plan?.raceName || 'planrun';
+  return plan?.planName || plan?.raceName || 'ruinna';
 }
 
 function formatExportDate(value) {
@@ -1346,7 +1346,7 @@ function buildProfessionalExcelHTML() {
     <x:ExcelWorkbook>
       <x:ExcelWorksheets>
         <x:ExcelWorksheet>
-          <x:Name>PlanRun</x:Name>
+          <x:Name>RUINNA</x:Name>
           <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
         </x:ExcelWorksheet>
       </x:ExcelWorksheets>
@@ -1380,7 +1380,7 @@ function buildProfessionalExcelHTML() {
       <col style="width: 110px"><col style="width: 110px"><col style="width: 95px"><col style="width: 110px">
       <col style="width: 80px"><col style="width: 280px">
     </colgroup>
-    <tr><td colspan="14" class="cover-title">PLANRUN — RELATÓRIO PROFISSIONAL DE TREINOS</td></tr>
+    <tr><td colspan="14" class="cover-title">RUINNA — RELATÓRIO PROFISSIONAL DE TREINOS</td></tr>
     <tr><td colspan="14" class="cover-subtitle">${excelCell(summary.planName)} • Exportado em ${excelCell(new Date(summary.exportedAt).toLocaleString('pt-BR'))}</td></tr>
     <tr><td colspan="14"></td></tr>
 
@@ -1562,7 +1562,7 @@ function buildProfessionalPDFHTML() {
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>${pdfCell(summary.planName)} - PlanRun</title>
+  <title>${pdfCell(summary.planName)} - RUINNA</title>
   <style>
     @page { size: A4 landscape; margin: 12mm; }
     * { box-sizing: border-box; }
@@ -1618,7 +1618,7 @@ function buildProfessionalPDFHTML() {
   <div class="pdf-page">
     <section class="hero">
       <div class="hero-main">
-        <div class="brand">PLANRUN</div>
+        <div class="brand">RUINNA</div>
         <h1>${pdfCell(summary.planName)}</h1>
         <p>Relatório profissional de treinos gerado em ${pdfCell(new Date(summary.exportedAt).toLocaleString('pt-BR'))}</p>
       </div>
@@ -1646,7 +1646,7 @@ function buildProfessionalPDFHTML() {
     <h2 class="section-title">Planilha detalhada</h2>
     ${weekCards}
 
-    <p class="footer">PlanRun • Relatório gerado localmente pelo navegador. Use Ctrl/Cmd + P para salvar novamente em PDF.</p>
+    <p class="footer">RUINNA • Relatório gerado localmente pelo navegador. Use Ctrl/Cmd + P para salvar novamente em PDF.</p>
   </div>
 </body>
 </html>`;
@@ -1661,7 +1661,7 @@ function handleExportPDF() {
   const printWindow = window.open('', '_blank');
 
   if (!printWindow) {
-    showSimpleModal('⚠️', 'Pop-up bloqueado', 'Permita pop-ups para o PlanRun e tente gerar o PDF novamente.');
+    showSimpleModal('⚠️', 'Pop-up bloqueado', 'Permita pop-ups para o RUINNA e tente gerar o PDF novamente.');
     return;
   }
 
@@ -1680,7 +1680,7 @@ function handleExportPDF() {
 function buildBackupPayload() {
   const snapshot = StorageService.getUserSnapshot();
   return {
-    app: 'PlanRun',
+    app: 'RUINNA',
     version: '1.0',
     ...snapshot
   };
@@ -1694,7 +1694,7 @@ function handleExportBackup() {
     return;
   }
 
-  const planName = sanitizeFileName(payload.plan?.planName || 'planrun-backup');
+  const planName = sanitizeFileName(payload.plan?.planName || 'ruinna-backup');
   const filename = `${planName}-backup-${getTodayFileStamp()}.json`;
   const json = JSON.stringify(payload, null, 2);
 
@@ -1712,7 +1712,7 @@ function handleImportBackupClick() {
 
 function validateBackupPayload(payload) {
   if (!payload || typeof payload !== 'object') return 'Arquivo inválido.';
-  if (payload.app !== 'PlanRun') return 'Este arquivo não parece ser um backup do PlanRun.';
+  if (payload.app !== 'RUINNA') return 'Este arquivo não parece ser um backup do RUINNA.';
   if (!payload.plan && !payload.workoutFeedback && !payload.weeklyCheckins) return 'Backup sem dados úteis para restaurar.';
 
   return null;
@@ -1766,7 +1766,7 @@ function handleImportBackupFile(file) {
     document.getElementById('modal-title').textContent = 'Importar backup?';
     document.getElementById('modal-message').innerHTML = `
       <p>Isso substituirá o plano, progresso, check-ins e ajustes salvos neste navegador.</p>
-      <p><strong>${escapeHTML(payload.plan?.planName || 'Backup PlanRun')}</strong></p>
+      <p><strong>${escapeHTML(payload.plan?.planName || 'Backup RUINNA')}</strong></p>
       <p>${payload.exportedAt ? `Exportado em ${new Date(payload.exportedAt).toLocaleString('pt-BR')}` : ''}</p>
     `;
     document.getElementById('modal-overlay').classList.remove('hidden');
@@ -3026,7 +3026,7 @@ function buildAICheckinPrompt(weekIndex, feedback, localRecommendation) {
   };
 
   return `
-Você é o Coach IA do PlanRun. Analise o check-in semanal e recomende um ajuste prudente para a próxima semana.
+Você é o Coach IA do RUINNA. Analise o check-in semanal e recomende um ajuste prudente para a próxima semana.
 
 DADOS DO CHECK-IN:
 ${JSON.stringify(payload, null, 2)}

@@ -4,7 +4,8 @@ const CONFIG = {
     bruno: 'bruno123',
     scarcela: 'scarcela123',
     vieira: 'vieira123',
-    kevin: 'kevin123'
+    kevin: 'kevin123',
+    castro: 'castro123'
   },
 
   USER_PROFILES: {
@@ -12,7 +13,7 @@ const CONFIG = {
       password: 'kevin123',
       displayName: 'Kevin',
       role: 'admin',
-      goal: 'Administração e testes do PlanRun',
+      goal: 'Administração e testes do RUINNA',
       avatar: 'K'
     },
     bolzan: {
@@ -42,6 +43,13 @@ const CONFIG = {
       role: 'runner',
       goal: 'Plano de corrida personalizado',
       avatar: 'V'
+    },
+    castro: {
+      password: 'castro123',
+      displayName: 'Castro',
+      role: 'runner',
+      goal: 'Plano de corrida personalizado',
+      avatar: 'C'
     }
   }
 };

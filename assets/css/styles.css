@@ -5847,3 +5847,19 @@ input[type="date"].ai-input {
     text-align: left;
   }
 }
+
+
+/* ===== RUINNA REBRAND V39 ===== */
+.login-access {
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.header-title,
+.logo-text {
+  letter-spacing: 0.08em;
+}

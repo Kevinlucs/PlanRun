@@ -1,9 +1,10 @@
 // ===== STORAGE SERVICE =====
-// Camada central de persistência do PlanRun.
+// Camada central de persistência do RUINNA.
 // Hoje usa localStorage; no futuro pode trocar por Supabase/Firebase sem reescrever o app.
 
 const StorageService = (() => {
-  const APP = 'planebsb';
+  const APP = 'ruinna';
+  const LEGACY_APP = 'planebsb';
   const SCHEMA_VERSION = 1;
 
   function safeParse(value, fallback = null) {
@@ -54,7 +55,7 @@ const StorageService = (() => {
   }
 
   function getCurrentUser() {
-    return getRaw(`${APP}_current_user`, 'guest') || 'guest';
+    return getRaw(`${APP}_current_user`, getRaw(`${LEGACY_APP}_current_user`, 'guest')) || 'guest';
   }
 
   function userKey(suffix, user = getCurrentUser()) {
@@ -62,34 +63,20 @@ const StorageService = (() => {
   }
 
   function legacyKey(name) {
-    return `${APP}_${name}`;
+    return `${LEGACY_APP}_${name}`;
+  }
+
+  function legacyUserKey(suffix, user = getCurrentUser()) {
+    return `${user}_${LEGACY_APP}_${suffix}`;
   }
 
   function getKeys(user = getCurrentUser()) {
-  
-  function getUserStorageSummary() {
-    const snapshot = getUserSnapshot();
-    const planWeeks = Array.isArray(snapshot.plan?.weeks) ? snapshot.plan.weeks.length : 0;
-    const planWorkouts = Array.isArray(snapshot.plan?.weeks)
-      ? snapshot.plan.weeks.reduce((sum, week) => sum + (Array.isArray(week.workouts) ? week.workouts.length : 0), 0)
-      : 0;
-
     return {
-      user: snapshot.user,
-      hasPlan: Boolean(snapshot.plan),
-      isAdopted: snapshot.isAdopted,
-      planWeeks,
-      planWorkouts,
-      completedCount: Object.keys(snapshot.completedWorkouts || {}).filter(key => snapshot.completedWorkouts[key]).length,
-      feedbackCount: Object.keys(snapshot.workoutFeedback || {}).length,
-      checkinCount: Object.keys(snapshot.weeklyCheckins || {}).length,
-      adjustmentCount: Array.isArray(snapshot.adjustmentHistory) ? snapshot.adjustmentHistory.length : 0
-    };
-  }
-
-  return {
       currentUser: `${APP}_current_user`,
       loggedIn: `${APP}_logged_in`,
+      legacyCurrentUser: `${LEGACY_APP}_current_user`,
+      legacyLoggedIn: `${LEGACY_APP}_logged_in`,
+
       completed: userKey('completed_workouts', user),
       custom: userKey('customizations', user),
       workoutFeedback: userKey('workout_feedback', user),
@@ -98,13 +85,20 @@ const StorageService = (() => {
       userProfile: userKey('user_profile', user),
       plan: userKey('ai_plan', user),
       adopted: userKey('ai_adopted', user),
+
       legacyCompleted: legacyKey('completed'),
-      legacyCustom: legacyKey('custom')
+      legacyCustom: legacyKey('custom'),
+      legacyWorkoutFeedback: legacyUserKey('workout_feedback', user),
+      legacyWeeklyCheckins: legacyUserKey('weekly_checkins', user),
+      legacyAdjustmentHistory: legacyUserKey('adjustment_history', user),
+      legacyUserProfile: legacyUserKey('user_profile', user),
+      legacyPlan: legacyUserKey('ai_plan', user),
+      legacyAdopted: legacyUserKey('ai_adopted', user)
     };
   }
 
   function isLoggedIn() {
-    return getRaw(`${APP}_logged_in`) === 'true';
+    return getRaw(`${APP}_logged_in`) === 'true' || getRaw(`${LEGACY_APP}_logged_in`) === 'true';
   }
 
   function login(user) {
@@ -115,11 +109,13 @@ const StorageService = (() => {
   function logout() {
     removeRaw(`${APP}_logged_in`);
     removeRaw(`${APP}_current_user`);
+    removeRaw(`${LEGACY_APP}_logged_in`);
+    removeRaw(`${LEGACY_APP}_current_user`);
   }
 
-
   function loadUserProfile() {
-    return getJSON(getKeys().userProfile, {}) || {};
+    const keys = getKeys();
+    return getJSON(keys.userProfile, getJSON(keys.legacyUserProfile, {})) || {};
   }
 
   function saveUserProfile(value) {
@@ -145,7 +141,8 @@ const StorageService = (() => {
   }
 
   function loadWorkoutFeedback() {
-    return getJSON(getKeys().workoutFeedback, {}) || {};
+    const keys = getKeys();
+    return getJSON(keys.workoutFeedback, getJSON(keys.legacyWorkoutFeedback, {})) || {};
   }
 
   function saveWorkoutFeedback(value) {
@@ -153,7 +150,8 @@ const StorageService = (() => {
   }
 
   function loadWeeklyCheckins() {
-    return getJSON(getKeys().weeklyCheckins, {}) || {};
+    const keys = getKeys();
+    return getJSON(keys.weeklyCheckins, getJSON(keys.legacyWeeklyCheckins, {})) || {};
   }
 
   function saveWeeklyCheckins(value) {
@@ -161,7 +159,8 @@ const StorageService = (() => {
   }
 
   function loadAdjustmentHistory() {
-    const value = getJSON(getKeys().adjustmentHistory, []);
+    const keys = getKeys();
+    const value = getJSON(keys.adjustmentHistory, getJSON(keys.legacyAdjustmentHistory, []));
     return Array.isArray(value) ? value : [];
   }
 
@@ -170,7 +169,8 @@ const StorageService = (() => {
   }
 
   function loadPlan() {
-    return getJSON(getKeys().plan, null);
+    const keys = getKeys();
+    return getJSON(keys.plan, getJSON(keys.legacyPlan, null));
   }
 
   function savePlan(plan) {
@@ -184,7 +184,8 @@ const StorageService = (() => {
   }
 
   function isPlanAdopted() {
-    return getRaw(getKeys().adopted) === 'true';
+    const keys = getKeys();
+    return getRaw(keys.adopted, getRaw(keys.legacyAdopted)) === 'true';
   }
 
   function setPlanAdopted(value) {
@@ -201,7 +202,6 @@ const StorageService = (() => {
     saveAdjustmentHistory([]);
   }
 
-
   function clearCurrentUserData() {
     const keys = getKeys();
     removeRaw(keys.completed);
@@ -209,35 +209,16 @@ const StorageService = (() => {
     removeRaw(keys.workoutFeedback);
     removeRaw(keys.weeklyCheckins);
     removeRaw(keys.adjustmentHistory);
+    removeRaw(keys.userProfile);
     removeRaw(keys.plan);
     removeRaw(keys.adopted);
     return true;
   }
 
   function getUserSnapshot() {
-  
-  function getUserStorageSummary() {
-    const snapshot = getUserSnapshot();
-    const planWeeks = Array.isArray(snapshot.plan?.weeks) ? snapshot.plan.weeks.length : 0;
-    const planWorkouts = Array.isArray(snapshot.plan?.weeks)
-      ? snapshot.plan.weeks.reduce((sum, week) => sum + (Array.isArray(week.workouts) ? week.workouts.length : 0), 0)
-      : 0;
-
     return {
-      user: snapshot.user,
-      hasPlan: Boolean(snapshot.plan),
-      isAdopted: snapshot.isAdopted,
-      planWeeks,
-      planWorkouts,
-      completedCount: Object.keys(snapshot.completedWorkouts || {}).filter(key => snapshot.completedWorkouts[key]).length,
-      feedbackCount: Object.keys(snapshot.workoutFeedback || {}).length,
-      checkinCount: Object.keys(snapshot.weeklyCheckins || {}).length,
-      adjustmentCount: Array.isArray(snapshot.adjustmentHistory) ? snapshot.adjustmentHistory.length : 0
-    };
-  }
-
-  return {
       schemaVersion: SCHEMA_VERSION,
+      app: 'RUINNA',
       exportedAt: new Date().toISOString(),
       user: getCurrentUser(),
       isAdopted: isPlanAdopted(),
@@ -251,19 +232,6 @@ const StorageService = (() => {
     };
   }
 
-  function applyUserSnapshot(payload = {}) {
-    if (payload.plan) savePlan(payload.plan);
-    setPlanAdopted(payload.isAdopted !== false && Boolean(payload.plan));
-    saveCompletedWorkouts(payload.completedWorkouts || {});
-    saveCustomizations(payload.customizations || {});
-    saveWorkoutFeedback(payload.workoutFeedback || {});
-    saveWeeklyCheckins(payload.weeklyCheckins || {});
-    saveAdjustmentHistory(payload.adjustmentHistory || []);
-    saveUserProfile(payload.userProfile || {});
-    return true;
-  }
-
-
   function getUserStorageSummary() {
     const snapshot = getUserSnapshot();
     const planWeeks = Array.isArray(snapshot.plan?.weeks) ? snapshot.plan.weeks.length : 0;
@@ -282,6 +250,18 @@ const StorageService = (() => {
       checkinCount: Object.keys(snapshot.weeklyCheckins || {}).length,
       adjustmentCount: Array.isArray(snapshot.adjustmentHistory) ? snapshot.adjustmentHistory.length : 0
     };
+  }
+
+  function applyUserSnapshot(payload = {}) {
+    if (payload.plan) savePlan(payload.plan);
+    setPlanAdopted(payload.isAdopted !== false && Boolean(payload.plan));
+    saveCompletedWorkouts(payload.completedWorkouts || {});
+    saveCustomizations(payload.customizations || {});
+    saveWorkoutFeedback(payload.workoutFeedback || {});
+    saveWeeklyCheckins(payload.weeklyCheckins || {});
+    saveAdjustmentHistory(payload.adjustmentHistory || []);
+    saveUserProfile(payload.userProfile || {});
+    return true;
   }
 
   return {

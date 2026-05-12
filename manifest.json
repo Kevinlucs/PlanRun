@@ -1,7 +1,7 @@
 {
-  "name": "PLAN RUN",
-  "short_name": "PLAN RUN",
-  "description": "Controle de treinos para corrida - Plano de treino inteligente",
+  "name": "RUINNA",
+  "short_name": "RUINNA",
+  "description": "planeje e execute",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
