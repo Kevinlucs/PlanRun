@@ -205,3 +205,16 @@ O dashboard usa os dados reais do plano ativo, status dos treinos, feedbacks e c
 - Remove a redundância entre gráficos e histórico.
 - A parte inferior agora mostra leitura inteligente do ciclo, últimos check-ins e ajustes recentes.
 - Cache atualizado para `planrun-v22`.
+
+
+## Lapidação de responsividade e UX - v24
+
+- Cards de fase na aba Stats agora exibem semanas na vertical, preenchendo melhor o espaço no navegador.
+- Círculo de aderência do Performance Center centralizado.
+- Formulário IA Coach reorganizado em grids mais limpos no desktop.
+- Datepicker nativo com botão de calendário.
+- Máscara automática para campos de tempo, sem precisar digitar `:`.
+- Resultado do plano gerado mostra a revisão primeiro e deixa as semanas recolhidas em “Exibir todas as semanas”.
+- Após adotar o plano, o app redireciona para o Início.
+- Tela de treino ganhou botão “Voltar ao início”.
+- Cache atualizado para `planrun-v24`.

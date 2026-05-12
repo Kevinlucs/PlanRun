@@ -383,11 +383,17 @@
                         <div class="ai-form-row">
                             <div class="ai-form-group">
                                 <label class="ai-label">Data de Início dos Treinos</label>
-                                <input type="date" id="ai-start-date" class="ai-input" onchange="updateWeeksInfo()">
+                                <div class="date-input-wrap">
+                                    <input type="date" id="ai-start-date" class="ai-input" onchange="updateWeeksInfo()" onclick="openNativeDatePicker(this)">
+                                    <button type="button" class="date-picker-btn" onclick="openNativeDatePicker(document.getElementById('ai-start-date'))" aria-label="Abrir calendário">📅</button>
+                                </div>
                             </div>
                             <div class="ai-form-group">
                                 <label class="ai-label">Data da Prova</label>
-                                <input type="date" id="ai-race-date" class="ai-input" onchange="updateWeeksInfo()">
+                                <div class="date-input-wrap">
+                                    <input type="date" id="ai-race-date" class="ai-input" onchange="updateWeeksInfo()" onclick="openNativeDatePicker(this)">
+                                    <button type="button" class="date-picker-btn" onclick="openNativeDatePicker(document.getElementById('ai-race-date'))" aria-label="Abrir calendário">📅</button>
+                                </div>
                             </div>
                             <div class="ai-form-group">
                                 <label class="ai-label">Dias/semana</label>
@@ -414,21 +420,21 @@
                         <div class="ai-form-row">
                             <div class="ai-form-group">
                                 <label class="ai-label">5K</label>
-                                <input type="text" id="ai-time5k" class="ai-input" placeholder="25:00">
+                                <input type="text" id="ai-time5k" class="ai-input time-input" inputmode="numeric" placeholder="25:00" oninput="autoFormatTimeInput(this, false)">
                             </div>
                             <div class="ai-form-group">
                                 <label class="ai-label">10K</label>
-                                <input type="text" id="ai-time10k" class="ai-input" placeholder="52:00">
+                                <input type="text" id="ai-time10k" class="ai-input time-input" inputmode="numeric" placeholder="52:00" oninput="autoFormatTimeInput(this, false)">
                             </div>
                         </div>
                         <div class="ai-form-row">
                             <div class="ai-form-group">
                                 <label class="ai-label">21K (Meia)</label>
-                                <input type="text" id="ai-time21k" class="ai-input" placeholder="1:55:00">
+                                <input type="text" id="ai-time21k" class="ai-input time-input" inputmode="numeric" placeholder="1:55:00" oninput="autoFormatTimeInput(this, true)">
                             </div>
                             <div class="ai-form-group">
                                 <label class="ai-label">42K (Maratona)</label>
-                                <input type="text" id="ai-time42k" class="ai-input" placeholder="4:10:00">
+                                <input type="text" id="ai-time42k" class="ai-input time-input" inputmode="numeric" placeholder="4:10:00" oninput="autoFormatTimeInput(this, true)">
                             </div>
                         </div>
                     </div>
@@ -441,11 +447,11 @@
                         <div class="ai-form-row">
                             <div class="ai-form-group">
                                 <label class="ai-label">Tempo Total (MM:SS)</label>
-                                <input type="text" id="ai-test3km-time" class="ai-input" placeholder="15:00" oninput="handle3kmTimeInput(this)">
+                                <input type="text" id="ai-test3km-time" class="ai-input time-input" inputmode="numeric" placeholder="15:00" oninput="handle3kmTimeInput(this)">
                             </div>
                             <div class="ai-form-group">
                                 <label class="ai-label">Pace Médio (MM:SS/km)</label>
-                                <input type="text" id="ai-test3km-pace" class="ai-input" placeholder="05:00" oninput="handle3kmPaceInput(this)">
+                                <input type="text" id="ai-test3km-pace" class="ai-input time-input" inputmode="numeric" placeholder="05:00" oninput="handle3kmPaceInput(this)">
                             </div>
                         </div>
                     </div>

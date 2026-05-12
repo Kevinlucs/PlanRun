@@ -196,6 +196,35 @@ function getPhaseWorkouts(phase) {
 function getPhaseCompleted(phase) {
   return getPhaseWorkouts(phase).filter(w => isCompleted(w.id)).length;
 }
+
+
+function getPhaseWeekSummary(phase) {
+  const workouts = getPhaseWorkouts(phase);
+  const weekMap = new Map();
+
+  workouts.forEach(w => {
+    const key = w.week || `S${(w.weekIndex ?? 0) + 1}`;
+    if (!weekMap.has(key)) {
+      weekMap.set(key, {
+        week: key,
+        weekIndex: w.weekIndex ?? 0,
+        plannedKm: 0,
+        completedKm: 0,
+        total: 0,
+        done: 0
+      });
+    }
+
+    const item = weekMap.get(key);
+    item.plannedKm += Number(w.km || 0);
+    item.completedKm += Number(getWorkoutCompletedKm(w) || 0);
+    item.total += 1;
+    if (isCompleted(w.id)) item.done += 1;
+  });
+
+  return [...weekMap.values()].sort((a, b) => a.weekIndex - b.weekIndex);
+}
+
 function getConsecutiveWeeks() {
   let maxStreak = 0;
   let currentStreak = 0;
@@ -359,6 +388,7 @@ function renderWorkoutDetail(id) {
   const pace = getPace(w);
   const el = document.getElementById('workout-detail');
   el.innerHTML = `
+    <button class="btn-workout-home" onclick="goHomeFromWorkout()">← Voltar ao início</button>
     <div class="wd-header">
       <div class="wd-phase" style="color:${phaseColor(w.phase)}">${w.phase} • ${w.week}</div>
       <div class="wd-title">${w.title}</div>
@@ -503,10 +533,32 @@ function renderStats() {
     const kmDone = Math.round(getPhaseWorkouts(p.key).reduce((s, w) => s + getWorkoutCompletedKm(w), 0));
     const kmTotal = getPhaseWorkouts(p.key).reduce((s, w) => s + w.km, 0);
     const progress = total > 0 ? (done / total * 100) : 0;
+    const weeks = getPhaseWeekSummary(p.key);
+    const weeksHtml = weeks.length ? `
+      <div class="stats-phase-weeks">
+        ${weeks.map(w => {
+          const weekProgress = w.total > 0 ? Math.round((w.done / w.total) * 100) : 0;
+          return `
+            <div class="stats-phase-week">
+              <span>${w.week}</span>
+              <div class="stats-phase-week-bar"><i style="height:${Math.max(4, Math.min(100, weekProgress))}%"></i></div>
+              <small>${Math.round(w.completedKm)}/${Math.round(w.plannedKm)} km</small>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    ` : '<div class="stats-phase-empty">Sem semanas nesta fase.</div>';
+
     return `<div class="stats-phase-item">
-      <h3>${p.name}</h3>
-      <div class="sp-info"><span>${done}/${total} treinos</span><span>${kmDone}/${Math.round(kmTotal)} km</span></div>
+      <div class="stats-phase-head">
+        <div>
+          <h3>${p.name}</h3>
+          <div class="sp-info"><span>${done}/${total} treinos</span><span>${kmDone}/${Math.round(kmTotal)} km</span></div>
+        </div>
+        <strong>${Math.round(progress)}%</strong>
+      </div>
       <div class="phase-progress"><div class="phase-progress-bar" style="width:${progress}%"></div></div>
+      ${weeksHtml}
     </div>`;
   }).join('');
 
@@ -1772,12 +1824,50 @@ function updateWeeksInfo() {
   }
 }
 
-// 3km Test Auto-calc
-function timeStrToSeconds(str) {
-  const parts = str.split(':');
-  if (parts.length === 2) {
-    return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+// Time helpers + 3km Test Auto-calc
+function cleanTimeDigits(value, allowHours = false) {
+  const max = allowHours ? 6 : 4;
+  return String(value || '').replace(/\D/g, '').slice(0, max);
+}
+
+function digitsToTimeString(digits, allowHours = false) {
+  const clean = cleanTimeDigits(digits, allowHours);
+
+  if (!clean) return '';
+
+  if (allowHours && clean.length > 4) {
+    const h = clean.slice(0, -4);
+    const m = clean.slice(-4, -2);
+    const s = clean.slice(-2);
+    return `${Number(h)}:${m.padStart(2, '0')}:${s.padStart(2, '0')}`;
   }
+
+  if (clean.length > 2) {
+    const m = clean.slice(0, -2);
+    const s = clean.slice(-2);
+    return `${Number(m)}:${s.padStart(2, '0')}`;
+  }
+
+  return clean;
+}
+
+window.autoFormatTimeInput = function(input, allowHours = false) {
+  const cursorAtEnd = input.selectionStart === input.value.length;
+  input.value = digitsToTimeString(input.value, allowHours);
+  if (cursorAtEnd) input.setSelectionRange(input.value.length, input.value.length);
+};
+
+function timeStrToSeconds(str) {
+  const parts = String(str || '').split(':').map(Number);
+
+  if (parts.length === 3) {
+    return (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
+  }
+
+  if (parts.length === 2) {
+    return (parts[0] || 0) * 60 + (parts[1] || 0);
+  }
+
   return 0;
 }
 
@@ -1789,6 +1879,8 @@ function secondsToTimeStr(totalSeconds) {
 }
 
 window.handle3kmTimeInput = function(input) {
+  autoFormatTimeInput(input, false);
+
   const val = input.value.trim();
   if (val.match(/^\d{1,2}:\d{2}$/)) {
     const totalSecs = timeStrToSeconds(val);
@@ -1798,6 +1890,8 @@ window.handle3kmTimeInput = function(input) {
 };
 
 window.handle3kmPaceInput = function(input) {
+  autoFormatTimeInput(input, false);
+
   const val = input.value.trim();
   if (val.match(/^\d{1,2}:\d{2}$/)) {
     const paceSecs = timeStrToSeconds(val);
@@ -2174,9 +2268,37 @@ function renderAIPlanResult(plan) {
     `;
   }).join('');
 
-  weeksEl.innerHTML = reviewHtml + weeksHtml;
+  weeksEl.innerHTML = `
+    ${reviewHtml}
+    <div class="ai-weeks-toggle-card">
+      <button type="button" class="ai-toggle-weeks-btn" onclick="toggleAIAllWeeks()">
+        <span>📚</span>
+        <strong>Exibir todas as semanas</strong>
+        <small>${plan.weeks.length} semanas geradas • clique para abrir/ocultar</small>
+      </button>
+      <div id="ai-all-weeks-container" class="ai-all-weeks-container hidden">
+        ${weeksHtml}
+      </div>
+    </div>
+  `;
 
   document.getElementById('ai-result').classList.remove('hidden');
+}
+
+function toggleAIAllWeeks() {
+  const container = document.getElementById('ai-all-weeks-container');
+  const btn = document.querySelector('.ai-toggle-weeks-btn');
+
+  if (!container) return;
+
+  const willOpen = container.classList.contains('hidden');
+  container.classList.toggle('hidden');
+
+  if (btn) {
+    btn.classList.toggle('open', willOpen);
+    const strong = btn.querySelector('strong');
+    if (strong) strong.textContent = willOpen ? 'Ocultar semanas' : 'Exibir todas as semanas';
+  }
 }
 
 function toggleAIWeek(index) {
@@ -2196,6 +2318,8 @@ function handleAdoptPlan() {
     document.getElementById('modal-overlay').classList.add('hidden');
     applyAdoptedPlan();
     updateAdoptedBanner();
+    pageHistory.length = 0;
+    showPage('home');
     renderHome();
     renderPhases();
     renderStats();
@@ -2301,6 +2425,12 @@ function goBack() {
 function openPhase(phase) {
   renderPhaseDetail(phase);
   navigateTo('phase-detail');
+}
+
+function goHomeFromWorkout() {
+  pageHistory.length = 0;
+  showPage('home');
+  renderHome();
 }
 
 function openWorkout(id) {
