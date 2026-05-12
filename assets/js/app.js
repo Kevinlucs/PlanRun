@@ -374,7 +374,11 @@ function renderWorkoutDetail(id) {
       <button class="btn-manual-editor" onclick="openManualPlanEditor('${w.id}')">
         <span>✏️</span> Editar treino completo
       </button>
-      <small>Altere título, data, tipo, distância, pace e descrição deste treino.</small>
+      <div class="manual-editor-actions-row">
+        <button class="btn-manual-secondary" onclick="openAddWorkoutEditor(${w.weekIndex}, '${w.id}')">➕ Adicionar treino na semana</button>
+        <button class="btn-manual-danger" onclick="confirmRemoveWorkout('${w.id}')">🗑️ Remover treino</button>
+      </div>
+      <small>Altere, adicione ou remova treinos do plano ativo. As mudanças aparecem no app, PDF, XLS e backup.</small>
     </div>
     <div class="wd-description" id="wd-desc-block">
       <button class="btn-edit-inline" onclick="startEditDesc('${w.id}')">✏️ Editar descrição</button>
@@ -2698,6 +2702,68 @@ function startEditPace(id) {
 }
 
 
+
+function getDayNameFromDate(date) {
+  const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  return dayNames[date.getDay()];
+}
+
+function saveStoredPlan(plan) {
+  if (!plan) return false;
+  localStorage.setItem(getAIPlanStorageKey(), JSON.stringify(plan));
+  return true;
+}
+
+function ensurePlanWorkoutIds(plan) {
+  if (!plan || !Array.isArray(plan.weeks)) return plan;
+
+  plan.weeks.forEach((week, weekIndex) => {
+    if (!Array.isArray(week.workouts)) week.workouts = [];
+
+    week.workouts.forEach((workout, workoutIndex) => {
+      if (!workout.id) {
+        const weekLabel = week.week || `S${weekIndex + 1}`;
+        workout.id = `${weekLabel}-${workoutIndex}`;
+      }
+    });
+  });
+
+  return plan;
+}
+
+function normalizePlanWeekAfterManualChange(plan, weekIndex) {
+  const week = plan?.weeks?.[weekIndex];
+  if (!week || !Array.isArray(week.workouts)) return;
+
+  week.workouts.sort((a, b) => {
+    const da = new Date(a.date || 0).getTime();
+    const db = new Date(b.date || 0).getTime();
+    return da - db;
+  });
+
+  week.totalKm = week.workouts.reduce((sum, item) => sum + Number(item.km || 0), 0);
+}
+
+function invalidateWeekCheckinAfterManualChange(weekIndex) {
+  const key = String(weekIndex);
+  if (weeklyCheckins[key]) {
+    delete weeklyCheckins[key];
+    saveWeeklyCheckins();
+  }
+}
+
+function refreshAfterManualPlanMutation(targetId = null) {
+  if (AICoach.isPlanAdopted()) applyAdoptedPlan();
+
+  renderHome();
+  renderPhases();
+  renderStats();
+
+  if (targetId && allWorkouts.some(w => w.id === targetId)) {
+    renderWorkoutDetail(targetId);
+  }
+}
+
 function getWorkoutIndexInsideWeek(workout) {
   return allWorkouts
     .filter(item => item.weekIndex === workout.weekIndex)
@@ -2709,10 +2775,11 @@ function syncManualWorkoutEdit(id, updates) {
   if (!workout) return false;
 
   const date = updates.date ? parseLocalEditorDate(updates.date) : new Date(workout.date);
-  const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
   const dateStr = fmt(date);
   const dateBR = fmtBR(date);
-  const day = dayNames[date.getDay()];
+  const day = getDayNameFromDate(date);
+
+  const plan = ensurePlanWorkoutIds(AICoach.loadPlan());
 
   Object.assign(workout, {
     title: updates.title || workout.title,
@@ -2726,10 +2793,8 @@ function syncManualWorkoutEdit(id, updates) {
     dateBR
   });
 
-  const plan = AICoach.loadPlan();
   if (plan && Array.isArray(plan.weeks) && plan.weeks[workout.weekIndex]) {
-    const workoutIndex = getWorkoutIndexInsideWeek(workout);
-    const planWorkout = plan.weeks[workout.weekIndex].workouts?.[workoutIndex];
+    const planWorkout = plan.weeks[workout.weekIndex].workouts?.find(item => item.id === id);
 
     if (planWorkout) {
       planWorkout.title = workout.title;
@@ -2739,8 +2804,9 @@ function syncManualWorkoutEdit(id, updates) {
       planWorkout.dayType = workout.dayType;
       planWorkout.dayOfWeek = workout.day;
       planWorkout.date = workout.date.toISOString();
-      plan.weeks[workout.weekIndex].totalKm = plan.weeks[workout.weekIndex].workouts.reduce((sum, item) => sum + Number(item.km || 0), 0);
-      localStorage.setItem(getAIPlanStorageKey(), JSON.stringify(plan));
+
+      normalizePlanWeekAfterManualChange(plan, workout.weekIndex);
+      saveStoredPlan(plan);
     }
   }
 
@@ -2758,6 +2824,8 @@ function syncManualWorkoutEdit(id, updates) {
     feedback.updatedAt = new Date().toISOString();
     saveWorkoutFeedback();
   }
+
+  invalidateWeekCheckinAfterManualChange(workout.weekIndex);
 
   return true;
 }
@@ -2870,6 +2938,204 @@ function saveManualPlanEdit(id) {
   renderHome();
   renderPhases();
   renderStats();
+}
+
+
+function openAddWorkoutEditor(weekIndex, referenceId = '') {
+  const plan = ensurePlanWorkoutIds(AICoach.loadPlan());
+  const week = plan?.weeks?.[weekIndex];
+
+  if (!week) {
+    alert('Não foi possível localizar a semana do plano.');
+    return;
+  }
+
+  saveStoredPlan(plan);
+
+  const referenceWorkout = allWorkouts.find(item => item.id === referenceId) || allWorkouts.find(item => item.weekIndex === weekIndex);
+  const baseDate = referenceWorkout?.date ? new Date(referenceWorkout.date) : new Date(START_DATE);
+  const defaultDate = fmt(baseDate);
+  const types = ['Base', 'Qualidade', 'Longão', 'Recuperação', 'Intervalado', 'Subida', 'Tempo Run', 'Prova'];
+
+  document.getElementById('modal-icon').textContent = '➕';
+  document.getElementById('modal-title').textContent = `Adicionar treino em ${week.week || `S${weekIndex + 1}`}`;
+  document.getElementById('modal-message').innerHTML = `
+    <form class="manual-plan-form" onsubmit="return false;">
+      <div class="manual-editor-context">
+        <strong>${escapeHTML(week.week || `S${weekIndex + 1}`)} • ${escapeHTML(week.phase || 'Base')}</strong>
+        <span>O novo treino será salvo no plano ativo e entrará nos relatórios.</span>
+      </div>
+
+      <label>Título do treino</label>
+      <input class="edit-field" id="manual-add-title" type="text" value="Rodagem leve" maxlength="60">
+
+      <div class="manual-editor-grid">
+        <div>
+          <label>Data</label>
+          <input class="edit-field" id="manual-add-date" type="date" value="${defaultDate}">
+        </div>
+        <div>
+          <label>Tipo</label>
+          <select class="edit-field" id="manual-add-type">
+            ${types.map(type => `<option value="${type}" ${type === 'Base' ? 'selected' : ''}>${type}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+
+      <div class="manual-editor-grid">
+        <div>
+          <label>Distância planejada</label>
+          <input class="edit-field" id="manual-add-km" type="number" min="0" step="0.1" value="5">
+        </div>
+        <div>
+          <label>Pace planejado</label>
+          <input class="edit-field" id="manual-add-pace" type="text" value="Leve" maxlength="24" placeholder="Ex: 6:30/km">
+        </div>
+      </div>
+
+      <label>Descrição</label>
+      <textarea class="edit-field" id="manual-add-desc" rows="4" maxlength="220">Treino adicionado manualmente.</textarea>
+
+      <div class="manual-editor-warning">
+        Se esta semana já tinha check-in respondido, ele será reaberto para manter os cálculos corretos.
+      </div>
+    </form>
+  `;
+
+  document.getElementById('modal-overlay').classList.remove('hidden');
+  setTimeout(() => document.getElementById('manual-add-title')?.focus(), 100);
+
+  document.getElementById('modal-confirm').onclick = () => saveAddedWorkout(weekIndex);
+  document.getElementById('modal-cancel').onclick = () => {
+    document.getElementById('modal-overlay').classList.add('hidden');
+  };
+}
+
+function saveAddedWorkout(weekIndex) {
+  const title = document.getElementById('manual-add-title')?.value?.trim();
+  const dateValue = document.getElementById('manual-add-date')?.value;
+  const dayType = document.getElementById('manual-add-type')?.value;
+  const km = Number(document.getElementById('manual-add-km')?.value || 0);
+  const pace = document.getElementById('manual-add-pace')?.value?.trim();
+  const desc = document.getElementById('manual-add-desc')?.value?.trim();
+
+  if (!title) {
+    alert('Informe um título para o treino.');
+    return;
+  }
+
+  if (!dateValue) {
+    alert('Informe uma data válida.');
+    return;
+  }
+
+  if (Number.isNaN(km) || km < 0) {
+    alert('Informe uma distância válida.');
+    return;
+  }
+
+  const plan = ensurePlanWorkoutIds(AICoach.loadPlan());
+  const week = plan?.weeks?.[weekIndex];
+
+  if (!week) {
+    alert('Não foi possível localizar a semana do plano.');
+    return;
+  }
+
+  const date = parseLocalEditorDate(dateValue);
+  const weekLabel = week.week || `S${weekIndex + 1}`;
+  const id = `${weekLabel}-manual-${Date.now()}`;
+
+  const newWorkout = {
+    id,
+    dayOfWeek: getDayNameFromDate(date),
+    dayType: dayType || 'Base',
+    title,
+    desc: desc || '',
+    km,
+    pace: pace || '-',
+    date: date.toISOString(),
+    manual: true,
+    createdAt: new Date().toISOString()
+  };
+
+  if (!Array.isArray(week.workouts)) week.workouts = [];
+  week.workouts.push(newWorkout);
+
+  normalizePlanWeekAfterManualChange(plan, weekIndex);
+  saveStoredPlan(plan);
+  invalidateWeekCheckinAfterManualChange(weekIndex);
+
+  document.getElementById('modal-overlay').classList.add('hidden');
+  refreshAfterManualPlanMutation(id);
+
+  if (allWorkouts.some(w => w.id === id)) {
+    openWorkout(id);
+  }
+}
+
+function confirmRemoveWorkout(id) {
+  const workout = allWorkouts.find(item => item.id === id);
+  if (!workout) return;
+
+  const weekWorkouts = allWorkouts.filter(item => item.weekIndex === workout.weekIndex);
+  const isRaceWorkout = workout.weekIndex === Math.max(...allWorkouts.map(item => item.weekIndex)) && workout.dayType === 'Prova';
+
+  if (isRaceWorkout) {
+    alert('A prova não pode ser removida pelo editor manual. Edite os dados do treino se necessário.');
+    return;
+  }
+
+  if (weekWorkouts.length <= 1) {
+    alert('A semana precisa manter pelo menos um treino.');
+    return;
+  }
+
+  document.getElementById('modal-icon').textContent = '🗑️';
+  document.getElementById('modal-title').textContent = 'Remover treino?';
+  document.getElementById('modal-message').innerHTML = `
+    <div class="manual-remove-warning">
+      <strong>${escapeHTML(workout.title)}</strong>
+      <span>${escapeHTML(workout.week)} • ${escapeHTML(workout.dateBR)} • ${Number(workout.km || 0)} km</span>
+      <p>Essa ação remove o treino do plano ativo, dos relatórios PDF/XLS e do backup. Progresso registrado neste treino também será apagado.</p>
+    </div>
+  `;
+
+  document.getElementById('modal-overlay').classList.remove('hidden');
+  document.getElementById('modal-confirm').onclick = () => removeWorkoutFromPlan(id);
+  document.getElementById('modal-cancel').onclick = () => {
+    document.getElementById('modal-overlay').classList.add('hidden');
+  };
+}
+
+function removeWorkoutFromPlan(id) {
+  const workout = allWorkouts.find(item => item.id === id);
+  const plan = ensurePlanWorkoutIds(AICoach.loadPlan());
+  const week = plan?.weeks?.[workout?.weekIndex];
+
+  if (!workout || !week || !Array.isArray(week.workouts)) {
+    alert('Não foi possível remover este treino.');
+    return;
+  }
+
+  week.workouts = week.workouts.filter(item => item.id !== id);
+  normalizePlanWeekAfterManualChange(plan, workout.weekIndex);
+  saveStoredPlan(plan);
+
+  delete workoutFeedback[id];
+  delete completedWorkouts[id];
+  delete customizations[id];
+  saveWorkoutFeedback();
+  saveCompleted();
+  saveCustom();
+  invalidateWeekCheckinAfterManualChange(workout.weekIndex);
+
+  document.getElementById('modal-overlay').classList.add('hidden');
+  refreshAfterManualPlanMutation();
+
+  const nextWorkout = allWorkouts.find(item => item.weekIndex === workout.weekIndex) || getNextWorkout();
+  if (nextWorkout) openWorkout(nextWorkout.id);
+  else navigateTo('home');
 }
 
 function resetManualWorkoutEdit(id) {

@@ -3225,3 +3225,62 @@ select.ai-input {
     grid-template-columns: 1fr;
   }
 }
+
+/* ===== MANUAL PLAN EDITOR 2.0 ===== */
+.manual-editor-actions-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.btn-manual-secondary,
+.btn-manual-danger {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 12px 10px;
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+
+.btn-manual-secondary {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.btn-manual-danger {
+  background: rgba(239, 68, 68, 0.14);
+  border-color: rgba(239, 68, 68, 0.26);
+}
+
+.manual-remove-warning {
+  text-align: left;
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.manual-remove-warning strong,
+.manual-remove-warning span {
+  display: block;
+}
+
+.manual-remove-warning span {
+  color: var(--text-muted);
+}
+
+.manual-remove-warning p {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+@media (max-width: 520px) {
+  .manual-editor-actions-row {
+    grid-template-columns: 1fr;
+  }
+}

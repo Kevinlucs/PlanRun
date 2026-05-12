@@ -173,3 +173,15 @@ Após o atleta responder o check-in semanal, o app agora exibe imediatamente um 
 ## Manual Plan Editor
 
 A camada Manual Plan Editor permite editar treinos individuais do plano ativo sem regenerar a planilha. O atleta pode alterar título, data, tipo, distância, pace e descrição. As alterações são refletidas no app, nos relatórios PDF/XLS e no backup JSON.
+
+## Manual Plan Editor 2.0
+
+O editor manual agora permite adicionar e remover treinos dentro de uma semana do plano ativo, além de editar treinos existentes. As alterações são persistidas no plano salvo, aparecem no app, nos relatórios PDF/XLS e no backup JSON.
+
+Regras aplicadas:
+
+- A prova não pode ser removida pelo editor manual.
+- Uma semana precisa manter pelo menos um treino.
+- Ao adicionar/remover treino em uma semana já fechada, o check-in daquela semana é reaberto para manter os cálculos corretos.
+- Progresso e feedback de treino removido são apagados para evitar dados órfãos.
+- Treinos adicionados recebem ID interno estável para preservar status, exports e backups.
