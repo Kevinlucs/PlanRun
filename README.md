@@ -573,3 +573,16 @@ O dashboard usa os dados reais do plano ativo, status dos treinos, feedbacks e c
 - Ao concluir ou pular, o app redireciona para o Início.
 - Feedback de conclusão/pulo foi melhorado.
 - Cache atualizado para `ruinna-v57`.
+
+
+## Descrição em prescrição limpa - v58
+
+- Removidos blocos visuais de Estrutura, Aquecimento e múltiplos Bloco Principal.
+- Descrição do treino agora aparece como prescrição limpa, com apenas “Bloco principal”.
+- Removidos destaques visuais em KM, pace e zonas dentro da descrição.
+- Motor passou a gerar descrições por distância e zona, ex:
+  - 1,5KM EM Z1
+  - 3X (500M EM Z3/Z4 + 500M EM Z1)
+  - 1KM EM Z1
+- Descrições antigas verbosas são simplificadas na renderização.
+- Cache atualizado para `ruinna-v58`.

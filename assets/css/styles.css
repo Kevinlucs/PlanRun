@@ -7117,3 +7117,80 @@ input[type="date"].ai-input {
     font-size: 0.95rem;
   }
 }
+
+
+/* ===== CLEAN PRESCRIPTION DESCRIPTION V58 ===== */
+.wd-description-pro {
+  background:
+    radial-gradient(circle at top right, rgba(252, 76, 2, 0.08), transparent 34%),
+    var(--bg-card) !important;
+}
+
+.wd-desc-header {
+  margin-bottom: 12px !important;
+}
+
+.prescription-card {
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.09);
+  background: rgba(0,0,0,0.18);
+}
+
+.prescription-label {
+  padding: 10px 14px;
+  color: var(--accent-light);
+  background: rgba(252, 76, 2, 0.12);
+  border-bottom: 1px solid rgba(252, 76, 2, 0.18);
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.prescription-lines {
+  display: grid;
+}
+
+.prescription-line {
+  padding: 13px 16px;
+  color: #fff;
+  font-size: clamp(1rem, 2.5vw, 1.18rem);
+  font-weight: 950;
+  letter-spacing: 0.015em;
+  line-height: 1.35;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.prescription-line:last-child {
+  border-bottom: 0;
+}
+
+.prescription-warning {
+  padding: 11px 14px;
+  color: #ffe08a;
+  background: rgba(255, 193, 7, 0.08);
+  border-top: 1px solid rgba(255, 193, 7, 0.18);
+  font-weight: 850;
+  font-size: 0.86rem;
+}
+
+/* Desativa o visual antigo de cards por etapa nessa área. */
+.wd-description-pro .desc-structured,
+.wd-description-pro .desc-step,
+.wd-description-pro .desc-step-icon,
+.wd-description-pro .desc-step-content,
+.wd-description-pro .desc-highlight {
+  all: unset;
+}
+
+@media (max-width: 620px) {
+  .prescription-line {
+    padding: 12px 13px;
+    font-size: 1rem;
+  }
+
+  .prescription-label {
+    padding: 9px 13px;
+  }
+}

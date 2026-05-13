@@ -830,105 +830,125 @@ REGRAS:
     return Math.max(0.5, Math.round(n * 10) / 10);
   }
 
-  function estimateWorkoutMinutes(km) {
-    const totalKm = kmPart(km);
-    return Math.max(20, Math.round(totalKm * 6.2));
+  function formatKmValue(value) {
+    const n = kmPart(value);
+    return Number.isInteger(n) ? `${n}KM` : `${String(n).replace('.', ',')}KM`;
   }
 
   function buildSimpleZonePrescription(rows) {
     return rows
       .filter(Boolean)
+      .map(row => String(row).trim().toUpperCase())
       .join('\n');
+  }
+
+  function splitDistance(totalKm, warmDefault = 1, coolDefault = 1) {
+    const total = kmPart(totalKm);
+    const warm = total >= 10 ? 2 : total >= 7 ? 1.5 : warmDefault;
+    const cool = total >= 10 ? 2 : total >= 7 ? 1 : coolDefault;
+    const main = Math.max(1, kmPart(total - warm - cool));
+    return { total, warm, main, cool };
   }
 
   function buildProfessionalWorkoutDescription({ template, km, pace, phase, blueprint, isRaceWeek, distanceKm }) {
     const totalKm = kmPart(km);
-    const totalMin = estimateWorkoutMinutes(totalKm);
     const dayType = template.dayType;
     const title = String(template.title || '').toLowerCase();
 
     if (isRaceWeek && dayType === 'Longão') {
       return buildSimpleZonePrescription([
-        '10min Z1',
-        '20min Z2',
-        'Bloco principal Z3 conforme estratégia da prova',
-        'Final progressivo apenas se estiver confortável'
+        `${formatKmValue(Math.max(2, Math.round(totalKm * 0.20)))} EM Z1`,
+        `${formatKmValue(Math.max(3, Math.round(totalKm * 0.60)))} EM Z2/Z3`,
+        `${formatKmValue(Math.max(1, Math.round(totalKm * 0.20)))} PROGRESSIVO SE ESTIVER BEM`
       ]);
     }
 
     if (dayType === 'Recuperação') {
+      const { warm, main, cool } = splitDistance(totalKm, 1, 1);
       return buildSimpleZonePrescription([
-        '5min Z1',
-        `${Math.max(15, totalMin - 10)}min Z1`,
-        '5min Z1'
+        `${formatKmValue(warm)} EM Z1`,
+        `${formatKmValue(main)} EM Z1`,
+        `${formatKmValue(cool)} EM Z1`
       ]);
     }
 
     if (dayType === 'Base') {
       if (phase === 'Polimento' || title.includes('ativação')) {
         return buildSimpleZonePrescription([
-          '10min Z1',
-          '4x (15s Z3/Z4 + 60s Z1)',
-          '10min Z1'
+          `${formatKmValue(Math.min(2, Math.max(1, totalKm * 0.35)))} EM Z1`,
+          `4X (15S EM Z3/Z4 + 60S EM Z1)`,
+          `${formatKmValue(Math.min(2, Math.max(1, totalKm * 0.35)))} EM Z1`
         ]);
       }
 
+      const { warm, main, cool } = splitDistance(totalKm, 1, 1);
       return buildSimpleZonePrescription([
-        '5min Z1',
-        `${Math.max(20, totalMin - 10)}min Z2`,
-        '5min Z1'
+        `${formatKmValue(warm)} EM Z1`,
+        `${formatKmValue(main)} EM Z2`,
+        `${formatKmValue(cool)} EM Z1`
       ]);
     }
 
     if (dayType === 'Qualidade' && title.includes('fartlek')) {
-      const reps = totalKm >= 9 ? 8 : totalKm >= 7 ? 6 : 5;
+      const { warm, main, cool } = splitDistance(totalKm, 1.5, 1);
+      const reps = Math.max(2, Math.floor(main / 1.5));
+      const blockKm = Math.max(0.5, kmPart((main / reps) / 2));
 
       return buildSimpleZonePrescription([
-        '10min Z1',
-        `${reps}x (3min Z3/Z4 + 2min Z1)`,
-        '5min Z1'
+        `${formatKmValue(warm)} EM Z1`,
+        `${reps}X (${formatKmValue(blockKm)} EM Z3/Z4 + ${formatKmValue(blockKm)} EM Z1)`,
+        `${formatKmValue(cool)} EM Z1`
       ]);
     }
 
     if (dayType === 'Intervalado') {
+      const { warm, main, cool } = splitDistance(totalKm, 1.5, 1);
       const reps = totalKm >= 10 ? 6 : totalKm >= 7 ? 5 : 4;
+      const shot = totalKm >= 9 ? '800M' : '600M';
+      const recovery = totalKm >= 9 ? '400M' : '300M';
 
       return buildSimpleZonePrescription([
-        '10min Z1',
-        `${reps}x (3min Z4 + 2min Z1)`,
-        '10min Z1'
+        `${formatKmValue(warm)} EM Z1`,
+        `${reps}X (${shot} EM Z4 + ${recovery} EM Z1)`,
+        `${formatKmValue(cool)} EM Z1`
       ]);
     }
 
     if (dayType === 'Qualidade' && (title.includes('ritmo') || title.includes('prova'))) {
+      const { warm, main, cool } = splitDistance(totalKm, 1.5, 1);
       return buildSimpleZonePrescription([
-        '10min Z1',
-        `${Math.max(15, totalMin - 20)}min Z3`,
-        '10min Z1'
+        `${formatKmValue(warm)} EM Z1`,
+        `${formatKmValue(main)} EM Z3`,
+        `${formatKmValue(cool)} EM Z1`
       ]);
     }
 
     if (dayType === 'Longão') {
+      const total = kmPart(totalKm);
+      const warm = Math.max(2, Math.round(total * 0.15));
+      const main = Math.max(3, Math.round(total * 0.70));
+      const final = Math.max(1, kmPart(total - warm - main));
+
       if (phase === 'Polimento') {
         return buildSimpleZonePrescription([
-          '10min Z1',
-          `${Math.max(25, totalMin - 20)}min Z2`,
-          '10min Z1'
+          `${formatKmValue(warm)} EM Z1`,
+          `${formatKmValue(main + final)} EM Z2`,
+          `${formatKmValue(1)} EM Z1`
         ]);
       }
 
       return buildSimpleZonePrescription([
-        '15min Z1',
-        `${Math.max(30, Math.round(totalMin * 0.70))}min Z2`,
-        `${Math.max(10, Math.round(totalMin * 0.20))}min Z2/Z3 se estiver bem`,
-        '5min Z1'
+        `${formatKmValue(warm)} EM Z1`,
+        `${formatKmValue(main)} EM Z2`,
+        `${formatKmValue(final)} EM Z2/Z3 SE ESTIVER BEM`
       ]);
     }
 
+    const { warm, main, cool } = splitDistance(totalKm, 1, 1);
     return buildSimpleZonePrescription([
-      '5min Z1',
-      `${Math.max(20, totalMin - 10)}min Z2`,
-      '5min Z1'
+      `${formatKmValue(warm)} EM Z1`,
+      `${formatKmValue(main)} EM Z2`,
+      `${formatKmValue(cool)} EM Z1`
     ]);
   }
 
