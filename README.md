@@ -467,3 +467,13 @@ O dashboard usa os dados reais do plano ativo, status dos treinos, feedbacks e c
 - Registro do service worker agora chama `registration.update()`.
 - Confirmado que o bug antigo `isComplete/isPartial` não existe mais no `handleAdoptPlan()`.
 - Esta versão serve para evitar confusão com cache antigo do navegador/PWA.
+
+
+## Correção: showToast não definido - v50
+
+- Adicionada função global `showToast()`.
+- Corrigido erro ao adotar planilha após confirmação.
+- O fluxo de adoção agora pode exibir feedback de sucesso sem quebrar.
+- A função também atende check-ins que já chamavam `showToast`.
+- Adicionado CSS do toast.
+- Cache atualizado para `ruinna-v50`.

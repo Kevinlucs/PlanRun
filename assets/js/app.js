@@ -1802,6 +1802,32 @@ function showSimpleModal(icon, title, message) {
   };
 }
 
+
+function showToast(message, type = 'info') {
+  let container = document.getElementById('toast-container');
+
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toast-container';
+    container.className = 'toast-container';
+    document.body.appendChild(container);
+  }
+
+  const toast = document.createElement('div');
+  toast.className = `app-toast ${type}`;
+  toast.textContent = message;
+
+  container.appendChild(toast);
+
+  requestAnimationFrame(() => toast.classList.add('show'));
+
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 250);
+  }, 2800);
+}
+
+
 // ===== NAVIGATION =====
 function showPage(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
