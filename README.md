@@ -422,3 +422,12 @@ O dashboard usa os dados reais do plano ativo, status dos treinos, feedbacks e c
 - Corrigido fluxo do botão “Rever tour” para abrir a apresentação corretamente após confirmação.
 - Botões do modal do tour agora são resetados antes de cada etapa.
 - Cache atualizado para `ruinna-v44`.
+
+
+## Correção definitiva do replay do tour - v45
+
+- Corrigido botão “Rever tour” que abria confirmação, mas não iniciava o tour.
+- O botão agora usa `data-action="start-tour"` e listener em captura para evitar conflito com handlers antigos do modal.
+- O modal de confirmação é fechado antes de abrir o primeiro passo do tour.
+- Botões do modal limpam ações antigas antes de cada etapa.
+- Cache atualizado para `ruinna-v45`.

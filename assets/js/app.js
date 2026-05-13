@@ -4222,9 +4222,11 @@ function renderTourStep(index = 0) {
 
   cancelBtn.classList.remove('hidden');
   cancelBtn.disabled = false;
+  cancelBtn.dataset.action = '';
   cancelBtn.textContent = 'Pular';
 
   confirmBtn.disabled = false;
+  confirmBtn.dataset.action = '';
   confirmBtn.textContent = isLast ? 'Começar' : 'Próximo';
 
   cancelBtn.onclick = () => finishOnboardingTour();
@@ -4245,25 +4247,45 @@ function finishOnboardingTour() {
 }
 
 
-function replayOnboardingTour() {
+function startOnboardingTourFromBeginning() {
   const modal = document.getElementById('modal-overlay');
   const confirmBtn = document.getElementById('modal-confirm');
   const cancelBtn = document.getElementById('modal-cancel');
 
   if (confirmBtn) {
+    confirmBtn.dataset.action = '';
+    confirmBtn.onclick = null;
     confirmBtn.disabled = false;
-    confirmBtn.textContent = 'Próximo';
   }
 
   if (cancelBtn) {
+    cancelBtn.onclick = null;
     cancelBtn.disabled = false;
     cancelBtn.classList.remove('hidden');
   }
 
   if (modal) modal.classList.add('hidden');
 
-  // Aguarda o fechamento do modal de confirmação para abrir o primeiro passo.
-  setTimeout(() => renderTourStep(0), 80);
+  // Dá um ciclo ao navegador para fechar o modal de confirmação antes de abrir o tour.
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      try {
+        renderTourStep(0);
+      } catch (error) {
+        console.error('Erro ao iniciar tour:', error);
+        showSimpleModal('⚠️', 'Tour indisponível', 'Não foi possível iniciar o tour agora. Recarregue a página e tente novamente.');
+      }
+    }, 60);
+  });
+}
+
+function replayOnboardingTour(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  startOnboardingTourFromBeginning();
 }
 
 function confirmReplayTour(event) {
@@ -4271,6 +4293,7 @@ function confirmReplayTour(event) {
     event.preventDefault();
     event.stopPropagation();
   }
+
   document.getElementById('modal-icon').textContent = '❔';
   document.getElementById('modal-title').textContent = 'Rever tour do RUINNA?';
   document.getElementById('modal-message').innerHTML = `
@@ -4285,15 +4308,30 @@ function confirmReplayTour(event) {
   cancelBtn.classList.remove('hidden');
   cancelBtn.disabled = false;
   cancelBtn.textContent = 'Agora não';
+  cancelBtn.dataset.action = '';
+  cancelBtn.onclick = () => document.getElementById('modal-overlay').classList.add('hidden');
 
   confirmBtn.disabled = false;
   confirmBtn.textContent = 'Rever tour';
-
-  cancelBtn.onclick = () => document.getElementById('modal-overlay').classList.add('hidden');
-  confirmBtn.onclick = (event) => replayOnboardingTour(event);
+  confirmBtn.dataset.action = 'start-tour';
+  confirmBtn.onclick = null;
 
   document.getElementById('modal-overlay').classList.remove('hidden');
 }
+
+// Captura o clique antes de handlers antigos do modal-confirm.
+// Isso evita conflito com onclick reaproveitado por outros modais.
+document.addEventListener('click', (event) => {
+  const target = event.target;
+  if (!target || target.id !== 'modal-confirm') return;
+  if (target.dataset.action !== 'start-tour') return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  event.stopImmediatePropagation();
+
+  startOnboardingTourFromBeginning();
+}, true);
 
 
 function maybeStartOnboardingTour() {
