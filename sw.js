@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ruinna-v40';
+const CACHE_NAME = 'ruinna-v41';
 const ASSETS = [
   './',
   './index.html',
@@ -10,6 +10,11 @@ const ASSETS = [
   './config/config.js',
   './manifest.json',
   './assets/img/logo.jpeg',
+  './assets/img/favicon.ico',
+  './assets/img/favicon.png',
+  './assets/img/apple-touch-icon.png',
+  './assets/img/ruinna-icon-192.png',
+  './assets/img/ruinna-icon-512.png',
   'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap'
 ];
 

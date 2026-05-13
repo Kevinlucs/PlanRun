@@ -4130,13 +4130,13 @@ const RUINNA_TOUR_STEPS = [
     page: 'home',
     icon: '👋',
     title: 'Bem-vindo ao RUINNA',
-    text: 'Aqui você acompanha a semana atual, marca treinos e responde check-ins. A ideia é simples: planeje e execute.'
+    text: 'Aqui você acompanha a semana atual, registra treinos e libera check-ins. O RUINNA transforma o plano em execução diária.'
   },
   {
     page: 'ai',
     icon: '🤖',
     title: 'IA Coach',
-    text: 'Nesta aba você gera a planilha personalizada. Informe seus dados, datas, objetivo e deixe a IA montar a estratégia.'
+    text: 'A IA Coach foi treinada para gerar uma planilha personalizada com base nas suas métricas, histórico, objetivo, datas e nível atual. Quanto melhores os dados, mais precisa fica a estratégia.'
   },
   {
     page: 'phases',
@@ -4148,7 +4148,7 @@ const RUINNA_TOUR_STEPS = [
     page: 'stats',
     icon: '📊',
     title: 'Estatísticas',
-    text: 'Aqui você enxerga evolução, aderência, volume realizado, esforço médio e ajustes do Adaptive Training.'
+    text: 'Aqui você acompanha evolução, aderência, volume realizado, esforço médio e os ajustes inteligentes do Adaptive Training.'
   },
   {
     page: 'settings',

@@ -380,3 +380,17 @@ O dashboard usa os dados reais do plano ativo, status dos treinos, feedbacks e c
 - Tour apresenta: Início, IA Coach, Treinos, Estatísticas e Perfil.
 - O tour roda apenas uma vez por usuário e fica salvo no StorageService.
 - Cache atualizado para `ruinna-v40`.
+
+
+## Logos/PWA + tour + navegação - v41
+
+- Gerados novos ícones oficiais a partir da logo atual:
+  - favicon.ico
+  - favicon.png
+  - apple-touch-icon.png
+  - ruinna-icon-192.png
+  - ruinna-icon-512.png
+- `index.html` e `manifest.json` atualizados para usar os novos ícones.
+- Service Worker atualizado para `ruinna-v41`.
+- Texto do tour da IA Coach atualizado com explicação mais profissional sobre personalização por métricas.
+- Ícones da bottom navigation centralizados para mobile e desktop.
