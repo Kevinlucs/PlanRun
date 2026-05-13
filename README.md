@@ -431,3 +431,11 @@ O dashboard usa os dados reais do plano ativo, status dos treinos, feedbacks e c
 - O modal de confirmação é fechado antes de abrir o primeiro passo do tour.
 - Botões do modal limpam ações antigas antes de cada etapa.
 - Cache atualizado para `ruinna-v45`.
+
+
+## Correção do tour após remover KM do header - v46
+
+- Corrigido erro ao iniciar/rever tour causado pela remoção do elemento `#total-km`.
+- `renderHome()` agora verifica se `#total-km` existe antes de tentar atualizar.
+- O botão `?` continua substituindo o contador de KM no header.
+- Cache atualizado para `ruinna-v46`.

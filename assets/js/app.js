@@ -365,8 +365,10 @@ function renderHome() {
   weeklyEl.innerHTML = weekWks.map(w => renderWorkoutRow(w, false)).join('');
   renderWeeklyCheckInCard(weekWks);
 
-  // Header stat
-  document.getElementById('total-km').textContent = getTotalKmDone() + ' km';
+  // Header stat: o contador de KM foi removido do header e substituído pelo botão de tour.
+  // Mantemos a atualização apenas se o elemento existir em alguma versão futura.
+  const totalKmEl = document.getElementById('total-km');
+  if (totalKmEl) totalKmEl.textContent = getTotalKmDone() + ' km';
 }
 
 function renderPhases() {
@@ -4273,7 +4275,7 @@ function startOnboardingTourFromBeginning() {
         renderTourStep(0);
       } catch (error) {
         console.error('Erro ao iniciar tour:', error);
-        showSimpleModal('⚠️', 'Tour indisponível', 'Não foi possível iniciar o tour agora. Recarregue a página e tente novamente.');
+        showSimpleModal('⚠️', 'Tour indisponível', 'Não foi possível iniciar o tour agora. Abra o console para detalhes ou recarregue a página.');
       }
     }, 60);
   });
