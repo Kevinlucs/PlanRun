@@ -5998,3 +5998,34 @@ input[type="date"].ai-input {
     height: 22px;
   }
 }
+
+
+/* ===== LOGOUT / AUTH SCREEN FIX V42 ===== */
+.login-screen {
+  background: #000 !important;
+  background-color: #000 !important;
+  z-index: 5000 !important;
+  min-height: 100dvh;
+  isolation: isolate;
+}
+
+.login-screen::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(circle at top right, rgba(252, 76, 2, 0.12), transparent 35%),
+    #000;
+}
+
+#app.hidden,
+.app.hidden {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.login-screen:not(.hidden) {
+  display: flex !important;
+}

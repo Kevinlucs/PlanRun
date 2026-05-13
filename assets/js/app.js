@@ -4094,14 +4094,39 @@ function handleLogout() {
   if (typeof StorageService !== 'undefined') StorageService.logout();
 
   pageHistory.length = 0;
-  document.getElementById('app').classList.add('hidden');
-  document.getElementById('login-screen').classList.remove('hidden');
+  currentPage = 'home';
+
+  const appEl = document.getElementById('app');
+  const loginEl = document.getElementById('login-screen');
+  const modalEl = document.getElementById('modal-overlay');
+
+  if (modalEl) modalEl.classList.add('hidden');
+
+  document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+  document.getElementById('page-home')?.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+  document.getElementById('nav-home')?.classList.add('active');
+
+  if (appEl) {
+    appEl.classList.add('hidden');
+    appEl.setAttribute('aria-hidden', 'true');
+    appEl.style.display = 'none';
+  }
+
+  if (loginEl) {
+    loginEl.classList.remove('hidden');
+    loginEl.removeAttribute('aria-hidden');
+    loginEl.style.display = 'flex';
+  }
 
   const userInput = document.getElementById('login-username');
   const passInput = document.getElementById('login-password');
   const errorEl = document.getElementById('login-error');
 
-  if (userInput) userInput.value = '';
+  if (userInput) {
+    userInput.value = '';
+    setTimeout(() => userInput.focus(), 80);
+  }
   if (passInput) passInput.value = '';
   if (errorEl) errorEl.classList.add('hidden');
 }
@@ -4112,8 +4137,14 @@ function finishLogin(user) {
   applyAdoptedPlan();
   updateHeaderUser();
 
-  document.getElementById('login-screen').classList.add('hidden');
-  document.getElementById('app').classList.remove('hidden');
+  const loginEl = document.getElementById('login-screen');
+  const appEl = document.getElementById('app');
+
+  loginEl.classList.add('hidden');
+  loginEl.style.display = 'none';
+  appEl.classList.remove('hidden');
+  appEl.removeAttribute('aria-hidden');
+  appEl.style.display = '';
 
   renderHome();
   renderPhases();
@@ -4262,9 +4293,27 @@ window.addEventListener('load', () => {
     // Check Login State
     const isLoggedIn = StorageService.isLoggedIn();
     if (!isLoggedIn) {
-      document.getElementById('login-screen').classList.remove('hidden');
+      const loginEl = document.getElementById('login-screen');
+      const appEl = document.getElementById('app');
+      if (appEl) {
+        appEl.classList.add('hidden');
+        appEl.style.display = 'none';
+      }
+      if (loginEl) {
+        loginEl.classList.remove('hidden');
+        loginEl.style.display = 'flex';
+      }
     } else {
-      document.getElementById('app').classList.remove('hidden');
+      const loginEl = document.getElementById('login-screen');
+      const appEl = document.getElementById('app');
+      if (loginEl) {
+        loginEl.classList.add('hidden');
+        loginEl.style.display = 'none';
+      }
+      if (appEl) {
+        appEl.classList.remove('hidden');
+        appEl.style.display = '';
+      }
       reloadUserAdaptiveState();
       applyAdoptedPlan();
       updateHeaderUser();

@@ -394,3 +394,12 @@ O dashboard usa os dados reais do plano ativo, status dos treinos, feedbacks e c
 - Service Worker atualizado para `ruinna-v41`.
 - Texto do tour da IA Coach atualizado com explicação mais profissional sobre personalização por métricas.
 - Ícones da bottom navigation centralizados para mobile e desktop.
+
+
+## Correção de logout - v42
+
+- Corrigido bug visual em que a tela de login aparecia por cima do app após sair.
+- Tela de login agora tem fundo opaco e z-index isolado.
+- Logout agora oculta o app de forma explícita e reseta navegação para Início.
+- Login limpa o display inline e restaura o app corretamente.
+- Cache atualizado para `ruinna-v42`.
