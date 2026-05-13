@@ -477,3 +477,16 @@ O dashboard usa os dados reais do plano ativo, status dos treinos, feedbacks e c
 - A função também atende check-ins que já chamavam `showToast`.
 - Adicionado CSS do toast.
 - Cache atualizado para `ruinna-v50`.
+
+
+## Descrições profissionais dos treinos - v51
+
+- Motor de treinos agora gera descrições técnicas e executáveis.
+- Fartlek deixou de ser vago: inclui aquecimento, alternância por blocos, recuperação e desaquecimento.
+- Intervalados agora indicam repetições, distância dos tiros, recuperação e controle de esforço.
+- Ritmo de prova/tempo run agora traz bloco principal sustentado.
+- Longões agora orientam distribuição por intensidade e progressão segura.
+- Validação foi ajustada para substituir descrições curtas/vagas por descrições profissionais.
+- Limite de descrição ampliado de 120 para 650 caracteres.
+- Prompt da IA reforçado para estratégia com linguagem de treinador.
+- Cache atualizado para `ruinna-v51`.

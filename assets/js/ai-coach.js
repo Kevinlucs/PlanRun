@@ -203,6 +203,15 @@ const AICoach = (() => {
 Você é um treinador profissional de corrida. Não gere planilha treino por treino.
 Gere apenas um BLUEPRINT estratégico pequeno para o motor do app montar a planilha.
 
+IMPORTANTE SOBRE PRESCRIÇÃO DOS TREINOS:
+- O app monta as semanas localmente, mas sua estratégia deve respeitar linguagem de treinador.
+- Tipos como rodagem leve, regenerativo, fartlek, tempo/ritmo de prova, intervalado/tiros e longão precisam ter objetivo claro.
+- Evite comandos vagos como "alternar blocos" sem contexto. O treino final deve orientar aquecimento, bloco principal, recuperação, desaquecimento e intensidade.
+- Para fartlek: usar alternância contínua entre trechos moderados/fortes e trote leve.
+- Para intervalados: usar repetições fortes com recuperação leve planejada.
+- Para tempo/ritmo de prova: usar bloco sustentado em ritmo controlado.
+- Para longão: priorizar resistência, controle e progressão segura.
+
 DADOS DO ATLETA:
 - Nome: ${userData.name || 'Atleta'}
 - Idade: ${userData.age || 'não informado'}
@@ -663,41 +672,41 @@ REGRAS:
 
   function getWorkoutTemplate(phase, index, daysPerWeek, isRecovery, isRaceWeek, isLastWorkout) {
     if (isRaceWeek && isLastWorkout) {
-      return { dayType: 'Longão', title: 'Prova alvo', desc: 'Execute a prova no ritmo planejado.' };
+      return { dayType: 'Longão', title: 'Prova alvo', desc: 'Executar prova com estratégia de ritmo controlada.' };
     }
 
     if (isRecovery) {
       const recovery = [
-        { dayType: 'Recuperação', title: 'Rodagem leve', desc: 'Corrida fácil para absorver a carga.' },
-        { dayType: 'Base', title: 'Base leve', desc: 'Ritmo confortável, sem forçar.' },
-        { dayType: 'Longão', title: 'Longão reduzido', desc: 'Longão controlado em semana regenerativa.' }
+        { dayType: 'Recuperação', title: 'Regenerativo leve', desc: 'Recuperação ativa em esforço muito controlado.' },
+        { dayType: 'Base', title: 'Base leve', desc: 'Rodagem confortável para manter frequência sem acumular fadiga.' },
+        { dayType: 'Longão', title: 'Longão reduzido', desc: 'Longão curto e controlado em semana regenerativa.' }
       ];
       return recovery[Math.min(index, recovery.length - 1)];
     }
 
     const middleQuality = phase === 'Base'
-      ? { dayType: 'Qualidade', title: 'Fartlek leve', desc: 'Alternar blocos leves e moderados.' }
+      ? { dayType: 'Qualidade', title: 'Fartlek técnico', desc: 'Variação de ritmo com blocos controlados e recuperação ativa.' }
       : phase === 'Resistência'
-        ? { dayType: 'Intervalado', title: 'Tiros controlados', desc: 'Intervalos fortes com boa recuperação.' }
+        ? { dayType: 'Intervalado', title: 'Tiros controlados', desc: 'Repetições fortes com recuperação planejada.' }
         : phase === 'Pico'
-          ? { dayType: 'Qualidade', title: 'Ritmo de prova', desc: 'Blocos no ritmo alvo da prova.' }
-          : { dayType: 'Base', title: 'Ativação leve', desc: 'Soltura curta sem gerar fadiga.' };
+          ? { dayType: 'Qualidade', title: 'Ritmo de prova segmentado', desc: 'Blocos no ritmo alvo da prova com controle de esforço.' }
+          : { dayType: 'Base', title: 'Ativação pré-prova', desc: 'Soltura curta com estímulos leves, sem gerar fadiga.' };
 
     if (isLastWorkout) {
-      return { dayType: 'Longão', title: 'Longão progressivo', desc: 'Longão em ritmo leve a moderado.' };
+      return { dayType: 'Longão', title: phase === 'Pico' ? 'Longão específico' : 'Longão progressivo', desc: 'Longão estruturado com controle de intensidade.' };
     }
 
     if (daysPerWeek <= 3) {
       return index === 0
-        ? { dayType: 'Base', title: 'Rodagem leve', desc: 'Corrida leve com controle de esforço.' }
+        ? { dayType: 'Base', title: 'Rodagem leve', desc: 'Rodagem leve com controle de esforço.' }
         : middleQuality;
     }
 
     const templates = [
-      { dayType: 'Base', title: 'Rodagem leve', desc: 'Corrida leve com controle de esforço.' },
+      { dayType: 'Base', title: 'Rodagem leve', desc: 'Rodagem leve com controle de esforço.' },
       middleQuality,
-      { dayType: 'Recuperação', title: 'Regenerativo', desc: 'Corrida muito leve para recuperar.' },
-      { dayType: 'Base', title: 'Base contínua', desc: 'Rodagem constante em ritmo confortável.' }
+      { dayType: 'Recuperação', title: 'Regenerativo', desc: 'Corrida muito leve para recuperação ativa.' },
+      { dayType: 'Base', title: 'Base contínua', desc: 'Rodagem contínua em zona confortável.' }
     ];
 
     return templates[Math.min(index, templates.length - 1)];
@@ -710,6 +719,85 @@ REGRAS:
     if (dayType === 'Longão') return zones.long || zones.easy || DEFAULT_PACE_ZONES.long;
     if (dayType === 'Recuperação') return zones.easy || DEFAULT_PACE_ZONES.easy;
     return zones.moderate || zones.easy || DEFAULT_PACE_ZONES.moderate;
+  }
+
+  function easyPaceForWorkout(blueprint) {
+    const zones = blueprint.paceZones || DEFAULT_PACE_ZONES;
+    return zones.easy || DEFAULT_PACE_ZONES.easy;
+  }
+
+  function moderatePaceForWorkout(blueprint) {
+    const zones = blueprint.paceZones || DEFAULT_PACE_ZONES;
+    return zones.moderate || zones.threshold || DEFAULT_PACE_ZONES.moderate;
+  }
+
+  function racePaceForWorkout(blueprint) {
+    const zones = blueprint.paceZones || DEFAULT_PACE_ZONES;
+    return zones.racePace || zones.threshold || DEFAULT_PACE_ZONES.racePace;
+  }
+
+  function kmPart(value, fallback = 1) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.max(0.5, Math.round(n * 10) / 10);
+  }
+
+  function buildProfessionalWorkoutDescription({ template, km, pace, phase, blueprint, isRaceWeek, distanceKm }) {
+    const totalKm = kmPart(km);
+    const easyPace = easyPaceForWorkout(blueprint);
+    const moderatePace = moderatePaceForWorkout(blueprint);
+    const racePace = racePaceForWorkout(blueprint);
+    const targetPace = pace || moderatePace;
+    const dayType = template.dayType;
+    const title = String(template.title || '').toLowerCase();
+
+    if (isRaceWeek && dayType === 'Longão') {
+      return `Prova alvo: iniciar os primeiros 20% em ritmo controlado (${easyPace}), estabilizar no ritmo planejado (${racePace}) e evitar acelerar antes da metade final. Fechar progressivo apenas se estiver confortável.`;
+    }
+
+    if (dayType === 'Recuperação') {
+      return `Executar ${totalKm} km muito leve em ${easyPace}. Objetivo é recuperar: respiração confortável, sem disputar pace e sem tiros. Se houver dor ou fadiga alta, reduzir o ritmo ou caminhar.`;
+    }
+
+    if (dayType === 'Base') {
+      if (phase === 'Polimento' || title.includes('ativação')) {
+        return `Soltura de ${totalKm} km em ${easyPace}. Incluir 4 acelerações curtas de 15s em ritmo vivo, com 60s bem leve entre elas. Finalizar sentindo que poderia correr mais.`;
+      }
+
+      return `Rodagem contínua de ${totalKm} km em ${targetPace}. Manter esforço confortável, postura relaxada e respiração controlada. Evitar transformar o treino em tempo run; o foco é acumular base aeróbica.`;
+    }
+
+    if (dayType === 'Qualidade' && title.includes('fartlek')) {
+      const warm = totalKm >= 7 ? 1.5 : 1;
+      const cool = totalKm >= 7 ? 1 : 0.5;
+      return `Estrutura: ${warm} km de aquecimento em ${easyPace}; depois alternar 1 km moderado/forte em ${moderatePace} com 500 m bem leve em ${easyPace}, repetindo até completar o miolo do treino; finalizar com ${cool} km de desaquecimento. Controle: forte, mas sem sprint.`;
+    }
+
+    if (dayType === 'Intervalado') {
+      const warm = totalKm >= 8 ? 2 : 1.5;
+      const cool = totalKm >= 8 ? 1.5 : 1;
+      const reps = totalKm >= 10 ? 6 : totalKm >= 7 ? 5 : 4;
+      const repDistance = totalKm >= 9 ? '800 m' : '600 m';
+      const recoveryDistance = totalKm >= 9 ? '400 m' : '300 m';
+      return `Estrutura: ${warm} km leve em ${easyPace}; depois ${reps}x ${repDistance} forte em ${targetPace}, recuperando ${recoveryDistance} em trote leve (${easyPace}) entre repetições; finalizar com ${cool} km leve. Não sprintar: terminar cansado, mas inteiro.`;
+    }
+
+    if (dayType === 'Qualidade' && (title.includes('ritmo') || title.includes('prova'))) {
+      const warm = totalKm >= 9 ? 2 : 1.5;
+      const cool = totalKm >= 9 ? 1.5 : 1;
+      const block = Math.max(1, kmPart(totalKm - warm - cool));
+      return `Estrutura: ${warm} km leve em ${easyPace}; ${block} km no ritmo alvo/controlado (${racePace}); finalizar com ${cool} km leve. O bloco principal deve ser sustentável, sem quebrar a técnica.`;
+    }
+
+    if (dayType === 'Longão') {
+      if (phase === 'Polimento') {
+        return `Longão reduzido de ${totalKm} km em ${easyPace}. Manter sensação de sobra, sem progressão agressiva. O objetivo é preservar resistência sem acumular fadiga para a prova.`;
+      }
+
+      return `Longão de ${totalKm} km: primeiros 70% em ${easyPace}, últimos 30% levemente progressivos até ${moderatePace} se estiver bem. Prioridade é resistência, regularidade e controle; não transformar em prova.`;
+    }
+
+    return `Executar ${totalKm} km em ${targetPace}, respeitando aquecimento leve no início, controle de esforço no bloco principal e desaquecimento no final.`;
   }
 
   function allocateWorkoutDistances(daysPerWeek, weeklyKm, longRunKm, isRaceWeek, distanceKm) {
@@ -766,12 +854,22 @@ REGRAS:
         ? (blueprint.paceZones?.racePace || 'Ritmo de prova')
         : paceForWorkout(template.dayType, blueprint);
 
+      const km = distances[index] || 0;
+
       return {
         dayOfWeek,
         dayType: template.dayType,
         title: template.title,
-        desc: template.desc,
-        km: distances[index] || 0,
+        desc: buildProfessionalWorkoutDescription({
+          template,
+          km,
+          pace,
+          phase: targets.phase,
+          blueprint,
+          isRaceWeek,
+          distanceKm
+        }),
+        km,
         pace
       };
     });
@@ -842,11 +940,15 @@ REGRAS:
     const source = workout || {};
     const fallback = fallbackWorkout || {};
 
+    const sourceDesc = String(source.desc || '').trim();
+    const fallbackDesc = String(fallback.desc || '').trim();
+    const shouldUseFallbackDesc = !sourceDesc || sourceDesc.length < 90 || /alternar blocos|corrida leve|ritmo confortável|boa recuperação/i.test(sourceDesc);
+
     const clean = {
       dayOfWeek: isValidDayName(source.dayOfWeek) ? source.dayOfWeek : (fallback.dayOfWeek || 'Terça'),
       dayType: normalizeDayTypeValue(source.dayType, fallback.dayType || 'Base'),
-      title: String(source.title || fallback.title || 'Treino').slice(0, 45),
-      desc: String(source.desc || fallback.desc || '').slice(0, 120),
+      title: String(source.title || fallback.title || 'Treino').slice(0, 55),
+      desc: String(shouldUseFallbackDesc ? fallbackDesc : sourceDesc).slice(0, 650),
       km: roundKm(source.km || fallback.km || 1),
       pace: source.pace || fallback.pace || '-'
     };
