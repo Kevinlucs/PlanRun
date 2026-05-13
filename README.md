@@ -500,3 +500,19 @@ O dashboard usa os dados reais do plano ativo, status dos treinos, feedbacks e c
 - Layout responsivo em grid no desktop e empilhado no mobile.
 - Semana de recuperação ganhou alerta visual próprio.
 - Cache atualizado para `ruinna-v52`.
+
+
+## Reset de lançamento para testes - v53
+
+- Adicionado reset automático de dados locais do RUINNA na primeira abertura desta versão.
+- O reset remove dados de todas as contas salvas neste navegador:
+  - login atual
+  - planos gerados/adotados
+  - progresso de treinos
+  - check-ins
+  - feedbacks
+  - perfil/foto/peso
+  - dados legados `planebsb`
+- O reset roda apenas uma vez por navegador usando `ruinna_release_reset_v53_done`.
+- Adicionada função `StorageService.resetAllRuinnaLocalData()` para reset manual futuro.
+- Service Worker atualizado para `ruinna-v53`.

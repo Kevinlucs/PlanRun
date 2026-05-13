@@ -1,4 +1,4 @@
-const RUINNA_BUILD_VERSION = 'v49-cache-guard';
+const RUINNA_BUILD_VERSION = 'v53-release-reset';
 console.info('RUINNA build carregado:', RUINNA_BUILD_VERSION);
 
 // ===== DADOS DOS TREINOS =====

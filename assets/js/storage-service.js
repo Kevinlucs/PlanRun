@@ -6,6 +6,46 @@ const StorageService = (() => {
   const APP = 'ruinna';
   const LEGACY_APP = 'planebsb';
   const SCHEMA_VERSION = 1;
+  const RELEASE_RESET_KEY = 'ruinna_release_reset_v53_done';
+
+  function runReleaseResetIfNeeded() {
+    try {
+      if (localStorage.getItem(RELEASE_RESET_KEY) === 'true') return false;
+
+      const keysToRemove = [];
+
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+
+        if (!key) continue;
+
+        const belongsToRuinna =
+          key === `${APP}_logged_in` ||
+          key === `${APP}_current_user` ||
+          key === `${LEGACY_APP}_logged_in` ||
+          key === `${LEGACY_APP}_current_user` ||
+          key.startsWith(`${APP}_`) ||
+          key.startsWith(`${LEGACY_APP}_`) ||
+          key.includes(`_${APP}_`) ||
+          key.includes(`_${LEGACY_APP}_`);
+
+        if (belongsToRuinna && key !== RELEASE_RESET_KEY) {
+          keysToRemove.push(key);
+        }
+      }
+
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+      localStorage.setItem(RELEASE_RESET_KEY, 'true');
+
+      console.info(`RUINNA: reset de lançamento aplicado. ${keysToRemove.length} chave(s) removida(s).`);
+      return true;
+    } catch (error) {
+      console.warn('RUINNA: não foi possível aplicar reset de lançamento.', error);
+      return false;
+    }
+  }
+
+  runReleaseResetIfNeeded();
 
   function safeParse(value, fallback = null) {
     try {
@@ -113,6 +153,38 @@ const StorageService = (() => {
     removeRaw(`${APP}_current_user`);
     removeRaw(`${LEGACY_APP}_logged_in`);
     removeRaw(`${LEGACY_APP}_current_user`);
+  }
+
+  function resetAllRuinnaLocalData() {
+    try {
+      const keysToRemove = [];
+
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+
+        if (!key) continue;
+
+        if (
+          key === `${APP}_logged_in` ||
+          key === `${APP}_current_user` ||
+          key === `${LEGACY_APP}_logged_in` ||
+          key === `${LEGACY_APP}_current_user` ||
+          key.startsWith(`${APP}_`) ||
+          key.startsWith(`${LEGACY_APP}_`) ||
+          key.includes(`_${APP}_`) ||
+          key.includes(`_${LEGACY_APP}_`) ||
+          key === RELEASE_RESET_KEY
+        ) {
+          keysToRemove.push(key);
+        }
+      }
+
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+      return true;
+    } catch (error) {
+      console.warn('RUINNA: falha ao limpar dados locais.', error);
+      return false;
+    }
   }
 
   function hasSeenOnboardingTour() {
@@ -287,6 +359,7 @@ const StorageService = (() => {
     isLoggedIn,
     login,
     logout,
+    resetAllRuinnaLocalData,
     hasSeenOnboardingTour,
     setOnboardingTourSeen,
     getJSON,
