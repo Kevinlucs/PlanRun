@@ -574,7 +574,8 @@ function highlightWorkoutDescriptionText(text = '') {
     .replace(/(\d+(?:[,.]\d+)?\s?km)/gi, '<strong class="desc-highlight km">$1</strong>')
     .replace(/(\d{1,2}:\d{2}\/km(?:-\d{1,2}:\d{2}\/km)?)/gi, '<strong class="desc-highlight pace">$1</strong>')
     .replace(/(\d+\s?x\s?\d+\s?m|\d+\s?x\s?\d+(?:[,.]\d+)?\s?km)/gi, '<strong class="desc-highlight rep">$1</strong>')
-    .replace(/(\d+\s?m)/gi, '<strong class="desc-highlight km">$1</strong>');
+    .replace(/(\d+\s?m)/gi, '<strong class="desc-highlight km">$1</strong>')
+    .replace(/\b(Z[1-5](?:-Z[1-5])?)\b/gi, '<strong class="desc-highlight zone">$1</strong>');
 }
 
 function renderWorkoutDescriptionHTML(desc = '', isRecoveryWeek = false) {
@@ -638,6 +639,7 @@ function renderWorkoutDetail(id) {
       <div class="wd-stat"><div class="wd-stat-icon">🏷️</div><div class="wd-stat-value">${w.dayType}</div><div class="wd-stat-label">Tipo</div></div>
       <div class="wd-stat"><div class="wd-stat-icon">📆</div><div class="wd-stat-value">${w.week}</div><div class="wd-stat-label">Semana</div></div>
     </div>
+    ${renderTrainingZonesCard()}
     <div class="wd-description wd-description-pro" id="wd-desc-block">
       <div class="wd-desc-header">
         <div>
@@ -2311,7 +2313,7 @@ function showAIPreflightSummary(data) {
     `Período: ${weeks} semanas`,
     `Treinos: ${data.daysPerWeek}x por semana`,
     `Nível: ${data.level}`,
-    data.test3kmTime ? `Teste 3km: ${data.test3kmTime}` : null,
+    data.test3kmTime ? `Teste 3km: ${data.test3kmTime}` : data.test3kmPace ? `Teste 3km: ${data.test3kmPace}/km` : null,
     data.objective ? `Objetivo informado` : null
   ].filter(Boolean).join(' • ');
 
@@ -2339,6 +2341,89 @@ function normalizeAIErrorMessage(message = '') {
   return msg;
 }
 
+
+
+function normalizeTimeInputToSeconds(value = '') {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+
+  const parts = raw.split(':').map(Number);
+  if (parts.some(part => !Number.isFinite(part))) return null;
+
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+
+  return null;
+}
+
+function hasValid3kmTest(data) {
+  const paceSeconds = normalizeTimeInputToSeconds(data.test3kmPace);
+  const timeSeconds = normalizeTimeInputToSeconds(data.test3kmTime);
+
+  if (paceSeconds && paceSeconds >= 180 && paceSeconds <= 900) return true;
+  if (timeSeconds && timeSeconds >= 540 && timeSeconds <= 2700) return true;
+
+  return false;
+}
+
+function getActiveTrainingZones() {
+  const plan = AICoach.loadPlan?.();
+  const userData = plan?.userData || {};
+  return plan?.blueprint?.paceZones?.trainingZones || AICoach.buildTrainingZones?.(userData) || null;
+}
+
+function renderTrainingZonesCard() {
+  const zones = getActiveTrainingZones();
+
+  if (!zones) {
+    return `
+      <div class="training-zones-card compact">
+        <div class="tz-header">
+          <div>
+            <span>Zonas de treinamento</span>
+            <h3>Teste 3km não encontrado</h3>
+          </div>
+        </div>
+        <p class="tz-empty">Gere uma planilha com teste de 3km para visualizar as zonas do atleta.</p>
+      </div>
+    `;
+  }
+
+  const rows = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5'].map(key => {
+    const zone = zones[key];
+    if (!zone) return '';
+
+    return `
+      <div class="tz-row ${key.toLowerCase()}">
+        <div class="tz-name">
+          <strong>${key}</strong>
+          <span>${escapeHTML(zone.name || '')}</span>
+        </div>
+        <div class="tz-values">
+          <span>${escapeHTML(zone.from || '-')} até ${escapeHTML(zone.to || '-')}</span>
+          <small>${escapeHTML(zone.speedFrom || '-')} até ${escapeHTML(zone.speedTo || '-')}</small>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="training-zones-card">
+      <div class="tz-header">
+        <div>
+          <span>Zonas de treinamento</span>
+          <h3>Referência pelo teste de 3km</h3>
+        </div>
+        <div class="tz-anchor">
+          <small>Z3</small>
+          <strong>${escapeHTML(zones.anchor?.pace || '-')}</strong>
+        </div>
+      </div>
+      <div class="tz-table">${rows}</div>
+      <p class="tz-note">As descrições usam zonas para orientar intensidade. O pace exato fica nesta tabela.</p>
+    </div>
+  `;
+}
 
 function getFormData() {
   const dist = document.getElementById('ai-distance').value;
@@ -2388,6 +2473,20 @@ function validateFormData(data) {
 
   if (!data.weight) return { message: 'Informe seu peso.', field: 'ai-weight' };
   if (!Number.isFinite(weight) || weight < 30 || weight > 250) return { message: 'Informe um peso válido em kg.', field: 'ai-weight' };
+
+  if (!data.test3kmTime && !data.test3kmPace) {
+    return {
+      message: 'Informe o teste de 3km. Ele é obrigatório para calcular as zonas de treinamento.',
+      field: 'ai-test3km-time'
+    };
+  }
+
+  if (!hasValid3kmTest(data)) {
+    return {
+      message: 'Informe um teste de 3km válido. Use o tempo total ou o pace médio.',
+      field: data.test3kmPace ? 'ai-test3km-pace' : 'ai-test3km-time'
+    };
+  }
 
   if (!data.startDate) return { message: 'Informe a data de início dos treinos.', field: 'ai-start-date' };
   if (!data.raceDate) return { message: 'Informe a data da prova.', field: 'ai-race-date' };

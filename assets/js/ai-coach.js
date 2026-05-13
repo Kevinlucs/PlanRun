@@ -156,38 +156,116 @@ const AICoach = (() => {
   }
 
   function inferBasePaceSeconds(userData) {
+    // No RUINNA, o teste de 3km é a âncora: o pace médio do teste vira a referência da Z3.
     const fromPace = paceToSeconds(userData.test3kmPace);
     if (fromPace) return fromPace;
 
     const testTime = timeToSeconds(userData.test3kmTime);
     if (testTime) return Math.round(testTime / 3);
 
-    const time5k = timeToSeconds(userData.time5k);
-    if (time5k) return Math.round(time5k / 5);
+    return null;
+  }
 
-    const time10k = timeToSeconds(userData.time10k);
-    if (time10k) return Math.round(time10k / 10) - 10;
+  function speedFromPaceSeconds(seconds) {
+    if (!seconds || !Number.isFinite(seconds)) return null;
+    return 3600 / seconds;
+  }
 
-    const level = String(userData.level || '').toLowerCase();
-    if (level.includes('av')) return 300; // 5:00/km
-    if (level.includes('inter')) return 360; // 6:00/km
-    return 450; // 7:30/km
+  function paceSecondsFromSpeed(speedKmh) {
+    if (!speedKmh || !Number.isFinite(speedKmh)) return null;
+    return 3600 / speedKmh;
+  }
+
+  function formatSpeed(speed) {
+    if (!speed || !Number.isFinite(speed)) return '-';
+    return `${String(Math.round(speed * 10) / 10).replace('.', ',')} km/h`;
+  }
+
+  function zoneRangeFromSpeedPercent(baseSeconds, minPercent, maxPercent) {
+    const baseSpeed = speedFromPaceSeconds(baseSeconds);
+    const fast = paceSecondsFromSpeed(baseSpeed * maxPercent);
+    const slow = paceSecondsFromSpeed(baseSpeed * minPercent);
+
+    return {
+      from: secondsToPace(fast),
+      to: secondsToPace(slow),
+      speedFrom: formatSpeed(baseSpeed * maxPercent),
+      speedTo: formatSpeed(baseSpeed * minPercent)
+    };
+  }
+
+  function buildTrainingZones(userData) {
+    const base = inferBasePaceSeconds(userData);
+    if (!base) return null;
+
+    const baseSpeed = speedFromPaceSeconds(base);
+
+    // Método inspirado na tabela do RUINNA:
+    // - O pace médio do teste de 3km é a referência da Z3.
+    // - As zonas são derivadas por percentuais de velocidade em relação à Z3.
+    // - Z1/Z2 são abaixo da Z3; Z4/Z5 acima da Z3.
+    return {
+      anchor: {
+        label: 'Teste 3km',
+        pace: secondsToPace(base),
+        speed: formatSpeed(baseSpeed)
+      },
+      Z1: {
+        label: 'Z1',
+        name: 'Recuperação / muito leve',
+        perception: 'Ritmo muito confortável para aquecer, desacelerar e recuperar.',
+        ...zoneRangeFromSpeedPercent(base, 0.60, 0.76)
+      },
+      Z2: {
+        label: 'Z2',
+        name: 'Leve confortável',
+        perception: 'Ritmo leve e sustentável, um pouco mais forte que Z1.',
+        ...zoneRangeFromSpeedPercent(base, 0.76, 0.87)
+      },
+      Z3: {
+        label: 'Z3',
+        name: 'Moderado / base do teste',
+        perception: 'Ritmo controlado e confortável forte. Referência principal do teste de 3km.',
+        ...zoneRangeFromSpeedPercent(base, 0.93, 1.00)
+      },
+      Z4: {
+        label: 'Z4',
+        name: 'Forte controlado',
+        perception: 'Ritmo forte para fartleks, tiros longos e blocos de qualidade.',
+        ...zoneRangeFromSpeedPercent(base, 1.02, 1.15)
+      },
+      Z5: {
+        label: 'Z5',
+        name: 'Máximo / tiro',
+        perception: 'Ritmo máximo para estímulos curtos. Usar com cautela.',
+        from: 'Máximo',
+        to: secondsToPace(paceSecondsFromSpeed(baseSpeed * 1.15)),
+        speedFrom: 'Máximo',
+        speedTo: formatSpeed(baseSpeed * 1.15)
+      }
+    };
   }
 
   function buildLocalPaceZones(userData) {
-    const base = inferBasePaceSeconds(userData);
-    if (!base) return { ...DEFAULT_PACE_ZONES };
+    const trainingZones = buildTrainingZones(userData);
 
-    const raceDistance = getDistanceKm(userData);
-    const raceAdd = raceDistance >= 42 ? 80 : raceDistance >= 21 ? 55 : raceDistance >= 10 ? 35 : 20;
+    if (!trainingZones) {
+      return {
+        ...DEFAULT_PACE_ZONES,
+        trainingZones: null,
+        zoneMethod: 'fallback'
+      };
+    }
 
     return {
-      easy: paceRange(base, 85, 135),
-      moderate: paceRange(base, 55, 85),
-      threshold: paceRange(base, 20, 45),
-      interval: paceRange(base, -10, 15),
-      long: paceRange(base, 95, 150),
-      racePace: secondsToPace(base + raceAdd)
+      easy: 'Z1-Z2',
+      moderate: 'Z2-Z3',
+      threshold: 'Z3',
+      interval: 'Z4',
+      long: 'Z1-Z2',
+      racePace: 'Z3',
+      trainingZones,
+      zoneMethod: '3km'
     };
   }
 
@@ -207,10 +285,11 @@ IMPORTANTE SOBRE PRESCRIÇÃO DOS TREINOS:
 - O app monta as semanas localmente, mas sua estratégia deve respeitar linguagem de treinador.
 - Tipos como rodagem leve, regenerativo, fartlek, tempo/ritmo de prova, intervalado/tiros e longão precisam ter objetivo claro.
 - Evite comandos vagos como "alternar blocos" sem contexto. O treino final deve orientar aquecimento, bloco principal, recuperação, desaquecimento e intensidade.
-- Para fartlek: usar alternância contínua entre trechos moderados/fortes e trote leve.
-- Para intervalados: usar repetições fortes com recuperação leve planejada.
-- Para tempo/ritmo de prova: usar bloco sustentado em ritmo controlado.
-- Para longão: priorizar resistência, controle e progressão segura.
+- Para fartlek: usar alternância contínua entre Z3/Z4 e recuperação em Z1/Z2.
+- Para intervalados: usar repetições fortes em Z4/Z5 com recuperação em Z1.
+- Para tempo/ritmo de prova: usar bloco sustentado em Z3.
+- Para longão: priorizar Z1/Z2, com progressão controlada até Z3 quando indicado.
+- O teste de 3km é obrigatório e o pace médio do teste representa a Z3 do atleta.
 
 DADOS DO ATLETA:
 - Nome: ${userData.name || 'Atleta'}
@@ -541,7 +620,8 @@ REGRAS:
       strategy: normalizedStrategy,
       paceZones: {
         ...fallback.paceZones,
-        ...(raw?.paceZones || {})
+        trainingZones: fallback.paceZones.trainingZones,
+        zoneMethod: fallback.paceZones.zoneMethod || '3km'
       },
       phaseDistribution: Array.isArray(raw?.phaseDistribution) && raw.phaseDistribution.length
         ? normalizePhaseDistribution(raw.phaseDistribution, totalWeeks, taperWeeks)
@@ -760,16 +840,16 @@ REGRAS:
     const title = String(template.title || '').toLowerCase();
 
     if (isRaceWeek && dayType === 'Longão') {
-      return `Prova alvo: iniciar os primeiros 20% em ritmo controlado (${easyPace}), estabilizar no ritmo planejado (${racePace}) e evitar acelerar antes da metade final. Fechar progressivo apenas se estiver confortável.`;
+      return `Prova alvo: iniciar os primeiros 20% em ${easyPace}, estabilizar no ritmo planejado (${racePace}) e evitar acelerar antes da metade final. Fechar progressivo apenas se estiver confortável.`;
     }
 
     if (dayType === 'Recuperação') {
-      return `Executar ${totalKm} km muito leve em ${easyPace}. Objetivo é recuperar: respiração confortável, sem disputar pace e sem tiros. Se houver dor ou fadiga alta, reduzir o ritmo ou caminhar.`;
+      return `Executar ${totalKm} km em ${easyPace}. Objetivo é recuperar: respiração confortável, sem disputar pace e sem tiros. Se houver dor ou fadiga alta, reduzir o ritmo ou caminhar.`;
     }
 
     if (dayType === 'Base') {
       if (phase === 'Polimento' || title.includes('ativação')) {
-        return `Soltura de ${totalKm} km em ${easyPace}. Incluir 4 acelerações curtas de 15s em ritmo vivo, com 60s bem leve entre elas. Finalizar sentindo que poderia correr mais.`;
+        return `Soltura de ${totalKm} km em ${easyPace}. Incluir 4 acelerações curtas de 15s em Z3/Z4, com 60s em Z1 entre elas. Finalizar sentindo que poderia correr mais.`;
       }
 
       return `Rodagem contínua de ${totalKm} km em ${targetPace}. Manter esforço confortável, postura relaxada e respiração controlada. Evitar transformar o treino em tempo run; o foco é acumular base aeróbica.`;
@@ -778,7 +858,7 @@ REGRAS:
     if (dayType === 'Qualidade' && title.includes('fartlek')) {
       const warm = totalKm >= 7 ? 1.5 : 1;
       const cool = totalKm >= 7 ? 1 : 0.5;
-      return `Estrutura: ${warm} km de aquecimento em ${easyPace}; depois alternar 1 km moderado/forte em ${moderatePace} com 500 m bem leve em ${easyPace}, repetindo até completar o miolo do treino; finalizar com ${cool} km de desaquecimento. Controle: forte, mas sem sprint.`;
+      return `Estrutura: ${warm} km de aquecimento em ${easyPace}; depois alternar 1 km em Z3/Z4 com 500 m em Z1, repetindo até completar o miolo do treino; finalizar com ${cool} km em ${easyPace}. Controle: forte, mas sem sprint.`;
     }
 
     if (dayType === 'Intervalado') {
@@ -787,14 +867,14 @@ REGRAS:
       const reps = totalKm >= 10 ? 6 : totalKm >= 7 ? 5 : 4;
       const repDistance = totalKm >= 9 ? '800 m' : '600 m';
       const recoveryDistance = totalKm >= 9 ? '400 m' : '300 m';
-      return `Estrutura: ${warm} km leve em ${easyPace}; depois ${reps}x ${repDistance} forte em ${targetPace}, recuperando ${recoveryDistance} em trote leve (${easyPace}) entre repetições; finalizar com ${cool} km leve. Não sprintar: terminar cansado, mas inteiro.`;
+      return `Estrutura: ${warm} km em ${easyPace}; depois ${reps}x ${repDistance} em ${targetPace}, recuperando ${recoveryDistance} em Z1 entre repetições; finalizar com ${cool} km em ${easyPace}. Não sprintar: terminar cansado, mas inteiro.`;
     }
 
     if (dayType === 'Qualidade' && (title.includes('ritmo') || title.includes('prova'))) {
       const warm = totalKm >= 9 ? 2 : 1.5;
       const cool = totalKm >= 9 ? 1.5 : 1;
       const block = Math.max(1, kmPart(totalKm - warm - cool));
-      return `Estrutura: ${warm} km leve em ${easyPace}; ${block} km no ritmo alvo/controlado (${racePace}); finalizar com ${cool} km leve. O bloco principal deve ser sustentável, sem quebrar a técnica.`;
+      return `Estrutura: ${warm} km em ${easyPace}; ${block} km em ${racePace}; finalizar com ${cool} km em ${easyPace}. O bloco principal deve ser sustentável, sem quebrar a técnica.`;
     }
 
     if (dayType === 'Longão') {
@@ -1496,6 +1576,8 @@ REGRAS:
     getAdoptedWorkouts,
     calculateWeeks,
     buildPrompt,
-    parsePlanResponse
+    parsePlanResponse,
+    buildTrainingZones,
+    buildLocalPaceZones
   };
 })();

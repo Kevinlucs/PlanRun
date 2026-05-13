@@ -544,3 +544,15 @@ O dashboard usa os dados reais do plano ativo, status dos treinos, feedbacks e c
 - Treino pulado continua entrando na análise do check-in para redistribuição segura da carga.
 - Responsividade mobile da tela do treino refinada: cards, textos, botões e descrição.
 - Cache atualizado para `ruinna-v55`.
+
+
+## Zonas de treinamento pelo teste de 3km - v56
+
+- Teste de 3km agora é obrigatório no IA Coach.
+- O pace médio do teste de 3km passa a ser a referência da Z3.
+- Motor calcula Z1 a Z5 por percentuais de velocidade derivados da Z3.
+- Cada treino passa a usar zonas na descrição: Z1, Z2, Z3, Z4 e Z5.
+- Tela de detalhe do treino ganhou card com tabela de zonas do atleta.
+- A tabela mostra pace e velocidade de esteira em km/h.
+- Descrições ficam mais limpas e profissionais, usando zona em vez de excesso de pace.
+- Cache atualizado para `ruinna-v56`.
