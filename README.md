@@ -799,3 +799,17 @@ O dashboard usa os dados reais do plano ativo, status dos treinos, feedbacks e c
 - O card Prova da tela Início não concatena mais distância duplicada como “5 KM - 5KM”.
 - O contador de dias usa a data atual até a data da prova, diminuindo com o passar dos dias.
 - Cache atualizado para `runevo-v74`.
+
+
+## RunEvo v75 - suporte dentro de Minhas Preferências
+
+- Corrigida a hierarquia do Perfil:
+  - Minhas preferências
+    - Geral
+    - Suporte
+      - Aplicativo
+        - Tour pelo app
+- Removida a categoria Suporte solta no Perfil.
+- Removido/ocultado o ícone “?” do header.
+- Mantidas as melhorias do v74.
+- Cache atualizado para `runevo-v75`.

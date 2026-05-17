@@ -8723,3 +8723,19 @@ body,
 .countdown-card {
   background-image: none !important;
 }
+
+
+/* ===== V75 PROFILE SUPPORT NESTED FLOW ===== */
+#header-tour-help,
+.header-tour-help {
+  display: none !important;
+}
+
+.profile-list-section h3 {
+  color: #CCFF00 !important;
+}
+
+.profile-list-item .profile-item-icon {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 950;
+}
