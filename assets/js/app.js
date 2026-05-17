@@ -2204,6 +2204,10 @@ function forcePageScrollTop(page = currentPage) {
 
 
 function showPage(page) {
+  const profileSubPages = new Set(['settings','shoes','shoe-form','general-settings','support','support-app','privacy']);
+  document.body.classList.toggle('profile-fullscreen-mode', profileSubPages.has(page));
+  document.getElementById('app')?.classList.toggle('profile-fullscreen-mode', profileSubPages.has(page));
+
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById(`page-${page}`).classList.add('active');
   document.querySelectorAll('.nav-item, .nav-item-wrap').forEach(n => n.classList.remove('active'));

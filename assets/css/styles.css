@@ -8955,3 +8955,112 @@ button.primary,
     max-width: calc(100vw - 52px);
   }
 }
+
+
+/* ===== V79 PLAN PREVIEW + PROFILE FULLSCREEN ===== */
+
+/* Prévia da planilha: botões não ficam mais fixos/flutuantes.
+   Agora aparecem no fim da leitura, após validação e semanas. */
+.plan-preview-page .ai-result-actions {
+  position: static !important;
+  bottom: auto !important;
+  z-index: auto !important;
+  margin-top: 18px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.plan-preview-page .ai-result-actions .btn-generate,
+.plan-preview-page .ai-result-actions .ai-btn-full {
+  min-height: 58px !important;
+  border-radius: 18px !important;
+}
+
+.plan-preview-page .ai-result-actions .btn-generate {
+  background: #CCFF00 !important;
+  color: #000 !important;
+}
+
+.plan-preview-page .ai-result-actions .ai-btn-full {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #fff !important;
+}
+
+.ai-all-weeks-container,
+.ai-result-weeks,
+.ai-week-card,
+.ai-weeks-toggle-card {
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+.ai-all-weeks-container.hidden {
+  display: none !important;
+}
+
+/* Próximo treino centralizado e sem bolinha lateral */
+#page-home .hero-badge {
+  justify-content: center !important;
+  text-align: center !important;
+  gap: 0 !important;
+  padding: 9px 16px !important;
+  letter-spacing: 0.16em;
+}
+
+#page-home .hero-badge .pulse-dot {
+  display: none !important;
+}
+
+/* Perfil e páginas internas de Perfil sem navbar inferior */
+body.profile-fullscreen-mode .bottom-nav,
+.app.profile-fullscreen-mode .bottom-nav {
+  display: none !important;
+}
+
+body.profile-fullscreen-mode .page.active,
+.app.profile-fullscreen-mode .page.active {
+  padding-bottom: calc(var(--safe-bottom) + 18px) !important;
+}
+
+/* no mobile com páginas fixas, libera a área que antes era reservada para a nav */
+@media (max-width: 767px) {
+  body.profile-fullscreen-mode .page.active,
+  .app.profile-fullscreen-mode .page.active {
+    bottom: 0 !important;
+    padding-bottom: calc(var(--safe-bottom) + 18px) !important;
+  }
+
+  body.profile-fullscreen-mode #page-settings.active,
+  body.profile-fullscreen-mode #page-shoes.active,
+  body.profile-fullscreen-mode #page-shoe-form.active,
+  body.profile-fullscreen-mode #page-general-settings.active,
+  body.profile-fullscreen-mode #page-support.active,
+  body.profile-fullscreen-mode #page-support-app.active,
+  body.profile-fullscreen-mode #page-privacy.active {
+    bottom: 0 !important;
+  }
+}
+
+/* Melhor leitura dos cards de semanas dentro da prévia no celular */
+@media (max-width: 680px) {
+  .plan-preview-page .ai-result-actions {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .ai-week-header {
+    gap: 10px !important;
+  }
+
+  .ai-week-header-left {
+    min-width: 0 !important;
+  }
+
+  .ai-week-title {
+    word-break: break-word;
+  }
+}

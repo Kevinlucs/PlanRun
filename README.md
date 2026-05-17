@@ -846,3 +846,14 @@ O dashboard usa os dados reais do plano ativo, status dos treinos, feedbacks e c
 - Exportação/Backup não deixa Excel selecionado por padrão; o destaque verde agora é dinâmico ao clicar.
 - Gradientes removidos dos principais botões/cards de ação.
 - Cache atualizado para `runevo-v78`.
+
+
+## RunEvo v79 - prévia e perfil fullscreen
+
+- Botões da tela “Prévia da planilha” deixaram de ficar fixos/flutuando.
+- “Adotar esta Planilha” e “Gerar outra Planilha” agora aparecem no final da prévia.
+- Corrigida a quebra visual ao exibir/ocultar semanas na prévia.
+- “Próximo treino” centralizado e sem bolinha lateral.
+- Ao entrar no Perfil e nas telas internas do Perfil, a bottom nav é ocultada.
+- A área da tela do Perfil passa a ocupar o espaço inteiro, usando a seta de voltar como navegação.
+- Cache atualizado para `runevo-v79`.
