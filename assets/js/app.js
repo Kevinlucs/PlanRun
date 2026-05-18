@@ -2400,22 +2400,48 @@ function cleanTimeDigits(value, allowHours = false) {
   return String(value || '').replace(/\D/g, '').slice(0, max);
 }
 
+function clampTimeStringToMax(value = '', maxSeconds = 8 * 3600) {
+  const parts = String(value || '').split(':').map(Number);
+  if (parts.some(part => !Number.isFinite(part))) return value;
+
+  let seconds = 0;
+  if (parts.length === 3) seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+  else if (parts.length === 2) seconds = parts[0] * 60 + parts[1];
+  else return value;
+
+  seconds = Math.min(Math.max(0, seconds), maxSeconds);
+
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
 function digitsToTimeString(digits, allowHours = false) {
   const clean = cleanTimeDigits(digits, allowHours);
 
   if (!clean) return '';
 
+  let formatted = '';
+
   if (allowHours && clean.length > 4) {
     const h = clean.slice(0, -4);
     const m = clean.slice(-4, -2);
     const s = clean.slice(-2);
-    return `${Number(h)}:${m.padStart(2, '0')}:${s.padStart(2, '0')}`;
+    formatted = `${Number(h)}:${m.padStart(2, '0')}:${s.padStart(2, '0')}`;
+    return clampTimeStringToMax(formatted, 8 * 3600);
   }
 
   if (clean.length > 2) {
     const m = clean.slice(0, -2);
     const s = clean.slice(-2);
-    return `${Number(m)}:${s.padStart(2, '0')}`;
+    formatted = `${Number(m)}:${s.padStart(2, '0')}`;
+    return allowHours ? clampTimeStringToMax(formatted, 8 * 3600) : formatted;
   }
 
   return clean;
@@ -2653,9 +2679,31 @@ function normalizeTimeInputToSeconds(value = '') {
   return null;
 }
 
+
+function isValidDurationInput(value = '', { maxSeconds = 8 * 3600, minSeconds = 1 } = {}) {
+  const raw = String(value || '').trim();
+  if (!raw) return false;
+
+  const parts = raw.split(':').map(Number);
+  if (![2, 3].includes(parts.length)) return false;
+  if (parts.some(part => !Number.isFinite(part) || part < 0)) return false;
+
+  const minutes = parts.length === 3 ? parts[1] : parts[0];
+  const seconds = parts.length === 3 ? parts[2] : parts[1];
+
+  if (minutes > 59 || seconds > 59) return false;
+
+  const total = normalizeTimeInputToSeconds(raw);
+  return Boolean(total && total >= minSeconds && total <= maxSeconds);
+}
+
+
 function hasValid3kmTest(data) {
   const timeSeconds = normalizeTimeInputToSeconds(data.test3kmTime);
-  return Boolean(timeSeconds && timeSeconds >= 540 && timeSeconds <= 2700);
+  return Boolean(
+    isValidDurationInput(data.test3kmTime, { maxSeconds: 2700, minSeconds: 540 }) &&
+    timeSeconds && timeSeconds >= 540 && timeSeconds <= 2700
+  );
 }
 
 function getActiveTrainingZones() {
@@ -2736,7 +2784,7 @@ function getFormData() {
     level: document.querySelector('input[name="ai-level"]:checked')?.value || 'intermediario',
     targetDistance: dist,
     customDistance: document.getElementById('ai-custom-distance').value || '',
-    terrain: document.querySelector('input[name="ai-terrain"]:checked')?.value || 'plano',
+    terrain: document.querySelector('input[name="ai-terrain"]:checked')?.value || '',
     startDate: document.getElementById('ai-start-date').value,
     raceDate: document.getElementById('ai-race-date').value,
     daysPerWeek: document.getElementById('ai-days').value,
@@ -2786,6 +2834,15 @@ function validateFormData(data) {
       field: missingHistory.field
     };
   }
+
+  const invalidHistory = previousChecks.find(item => item.time && !isValidDurationInput(item.time, { maxSeconds: 8 * 3600 }));
+  if (invalidHistory) {
+    return {
+      message: `Informe um tempo válido para ${invalidHistory.label}. Use MM:SS ou H:MM:SS, com limite máximo de 8:00:00.`,
+      field: invalidHistory.field
+    };
+  }
+
 
   if (!data.test3kmTime) {
     return {
@@ -2879,8 +2936,9 @@ function resetAIFormForNewPlan() {
   const level = document.querySelector('input[name="ai-level"][value="intermediario"]');
   if (level) level.checked = true;
 
-  const terrain = document.querySelector('input[name="ai-terrain"][value="plano"]');
-  if (terrain) terrain.checked = true;
+  document.querySelectorAll('input[name="ai-terrain"]').forEach(radio => {
+    radio.checked = false;
+  });
 
   const result = document.getElementById('ai-result');
   if (result) result.classList.add('hidden');

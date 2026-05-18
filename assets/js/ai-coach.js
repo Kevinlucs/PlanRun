@@ -205,6 +205,62 @@ const AICoach = (() => {
     return null;
   }
 
+
+  function inferGoalPaceSeconds(userData) {
+    const objective = String(userData?.objective || '').toLowerCase();
+
+    const patterns = [
+      /(\d{1,2})\s*[:h]\s*(\d{2})\s*(?:de\s*)?pace/,
+      /pace\s*(?:de|para|por volta de)?\s*(\d{1,2})\s*[:h]\s*(\d{2})/,
+      /(\d{1,2})['’](\d{2})/
+    ];
+
+    for (const pattern of patterns) {
+      const match = objective.match(pattern);
+      if (match) return Number(match[1]) * 60 + Number(match[2]);
+    }
+
+    return null;
+  }
+
+  function getGoalContext(userData) {
+    const testPace = inferBasePaceSeconds(userData);
+    const goalPace = inferGoalPaceSeconds(userData);
+    const distanceKm = getDistanceKm(userData);
+    const objective = String(userData?.objective || '').toLowerCase();
+
+    const enduranceWords = /completar|terminar|sem parar|resist[eê]ncia|concluir|longa dist[aâ]ncia|seguran[çc]a|sem lesionar|6[:h]30/.test(objective);
+    const longDistance = distanceKm >= 15;
+    const muchSlowerGoal = Boolean(testPace && goalPace && goalPace - testPace >= 60);
+
+    if ((longDistance && enduranceWords) || muchSlowerGoal) {
+      return {
+        type: 'endurance_goal',
+        goalPace,
+        testPace,
+        intensityBias: 'baixo',
+        progressionStyle: 'conservadora',
+        recoveryPriority: 'alta',
+        volumeFactor: longDistance ? 0.94 : 0.97,
+        longRunFactor: longDistance ? 0.96 : 1,
+        summary: 'Objetivo orientado à resistência/execução. O teste de 3km indica velocidade, mas a planilha deve priorizar base aeróbica, longões, Z1/Z2 e ritmo alvo conservador.'
+      };
+    }
+
+    return {
+      type: 'performance_goal',
+      goalPace,
+      testPace,
+      intensityBias: 'moderado',
+      progressionStyle: 'equilibrada',
+      recoveryPriority: 'média',
+      volumeFactor: 1,
+      longRunFactor: 1,
+      summary: 'Objetivo permite equilíbrio entre base, qualidade e especificidade.'
+    };
+  }
+
+
   function speedFromPaceSeconds(seconds) {
     if (!seconds || !Number.isFinite(seconds)) return null;
     return 3600 / seconds;
@@ -328,7 +384,10 @@ IMPORTANTE SOBRE PRESCRIÇÃO DOS TREINOS:
 - Para intervalados: usar repetições fortes em Z4/Z5 com recuperação em Z1.
 - Para tempo/ritmo de prova: usar bloco sustentado em Z3.
 - Para longão: priorizar Z1/Z2, com progressão controlada até Z3 quando indicado.
-- O teste de 3km é obrigatório; o atleta informa apenas o tempo total, e o pace médio calculado representa a Z3 do atleta. O objetivo textual do atleta deve influenciar volume, progressão, risco, recuperação e especificidade dos treinos.
+- O teste de 3km é obrigatório; o atleta informa apenas o tempo total, e o pace médio calculado representa a Z3 do atleta.
+- ATENÇÃO: o teste de 3km mede potencial de velocidade, mas NÃO deve dominar a planilha sozinho.
+- O objetivo textual, a distância da prova e o prazo têm prioridade na escolha da intensidade.
+- Se o atleta tem teste de 3km forte, mas objetivo de completar prova longa em pace conservador, priorize resistência, Z1/Z2, longões e progressão conservadora. Não transforme a planilha em treinos fortes só por causa do teste.
 - O terreno principal é obrigatório e impacta diretamente a planilha: plano permite mais constância de ritmo; misto pede variação controlada/subidas moderadas; elevado exige menor agressividade de pace, mais recuperação e orientação por esforço/zona.
 
 DADOS DO ATLETA:
@@ -345,6 +404,9 @@ DADOS DO ATLETA:
 - Data de início: ${userData.startDate}
 - Data da prova: ${userData.raceDate}
 - Pace/tempo teste 3km: ${userData.test3kmPace || userData.test3kmTime || 'não informado'}
+- Objetivo textual: ${userData.objective || 'não informado'}
+- Contexto do objetivo interpretado pelo Motor Evo: ${getGoalContext(userData).summary}
+- Pace alvo interpretado no objetivo: ${getGoalContext(userData).goalPace ? secondsToPace(getGoalContext(userData).goalPace) : 'não identificado'}
 
 TEMPOS ANTERIORES:
 ${getPreviousTimesText(userData)}
@@ -400,7 +462,7 @@ REGRAS:
 - Não inclua semanas detalhadas.
 - Não inclua workouts.
 - Não inclua nutrição, hidratação ou suplementação.
-- Ajuste volumes ao nível, idade, IMC, teste de 3km, prazo e distância.
+- Ajuste volumes ao nível, idade, IMC, teste de 3km, prazo, distância e objetivo textual. Se houver conflito entre teste forte e objetivo conservador, o objetivo/duração da prova vence.
 - A análise deve explicar o raciocínio do plano, sem prometer resultado garantido.
 - Se objetivo for agressivo, preserve a prova mas aumente recuperação e reduza progressão.
 - Para ultramaratona, peakLongRunKm normalmente fica entre 55% e 75% da distância alvo, limitado por segurança.
@@ -501,6 +563,7 @@ REGRAS:
     const isAdvanced = level.includes('av') || level.includes('avan');
     const isUltra = distanceKm > 42;
     const imcRisk = imc && imc >= 30 ? 0.85 : imc && imc >= 27 ? 0.93 : 1;
+    const goalContext = getGoalContext(userData);
 
     let initialLongRunKm;
     let peakLongRunKm;
@@ -523,13 +586,13 @@ REGRAS:
     }
 
     initialLongRunKm = Math.max(3, Math.round(initialLongRunKm * imcRisk));
-    peakLongRunKm = Math.max(initialLongRunKm + 4, Math.round(peakLongRunKm * imcRisk));
+    peakLongRunKm = Math.max(initialLongRunKm + 4, Math.round(peakLongRunKm * imcRisk * goalContext.longRunFactor));
 
     const longShareInitial = days <= 3 ? 0.42 : days === 4 ? 0.36 : 0.32;
     const longSharePeak = days <= 3 ? 0.45 : days === 4 ? 0.38 : 0.34;
 
-    const initialWeeklyKm = Math.max(days * 3, Math.round(initialLongRunKm / longShareInitial));
-    const peakWeeklyKm = Math.max(initialWeeklyKm + 8, Math.round(peakLongRunKm / longSharePeak));
+    const initialWeeklyKm = Math.max(days * 3, Math.round((initialLongRunKm / longShareInitial) * goalContext.volumeFactor));
+    const peakWeeklyKm = Math.max(initialWeeklyKm + 8, Math.round((peakLongRunKm / longSharePeak) * goalContext.volumeFactor));
     const taperWeeks = totalWeeks >= 18 ? 3 : 2;
 
     const riskLevel = imc && imc >= 30 ? 'alto' : imc && imc >= 27 ? 'moderado' : 'baixo';
@@ -552,10 +615,12 @@ REGRAS:
         goalFeasibility,
         mainStrength: isAdvanced ? 'Boa base de ritmo para suportar treinos de qualidade' : 'Boa janela para evolução gradual',
         mainWeakness: isUltra ? 'Necessidade de adaptação muscular para longões extensos' : 'Construção segura de volume semanal',
-        focus: isUltra ? 'Resistência aeróbica, longões progressivos e consistência' : 'Base aeróbica, técnica e progressão controlada',
-        coachSummary: isUltra
-          ? 'O plano prioriza consistência e adaptação muscular antes do pico, evitando saltos bruscos de carga.'
-          : 'O plano usa progressão gradual, semanas de recuperação e paces coerentes com o nível informado.'
+        focus: goalContext.type === 'endurance_goal' ? 'Resistência aeróbica, longões, consistência e execução no ritmo alvo' : (isUltra ? 'Resistência aeróbica, longões progressivos e consistência' : 'Base aeróbica, técnica e progressão controlada'),
+        coachSummary: goalContext.type === 'endurance_goal'
+          ? 'Apesar do teste de 3km indicar boa velocidade, o objetivo pede resistência e controle. O plano prioriza Z1/Z2, longões e progressão conservadora.'
+          : (isUltra
+            ? 'O plano prioriza consistência e adaptação muscular antes do pico, evitando saltos bruscos de carga.'
+            : 'O plano usa progressão gradual, semanas de recuperação e paces coerentes com o nível informado.')
       },
       strategy: {
         initialWeeklyKm,
@@ -572,9 +637,9 @@ REGRAS:
         'Evite compensar treinos perdidos acumulando volume em poucos dias.'
       ],
       engineCalibration: {
-        progressionStyle: riskLevel === 'alto' ? 'conservadora' : isAdvanced ? 'equilibrada' : 'conservadora',
-        recoveryPriority: riskLevel === 'alto' ? 'alta' : riskLevel === 'moderado' ? 'média' : 'baixa',
-        intensityBias: isAdvanced ? 'moderado' : 'baixo'
+        progressionStyle: riskLevel === 'alto' ? 'conservadora' : goalContext.progressionStyle,
+        recoveryPriority: riskLevel === 'alto' ? 'alta' : goalContext.recoveryPriority,
+        intensityBias: goalContext.intensityBias
       },
       source: reason ? `fallback: ${reason}` : 'fallback local'
     };
@@ -586,6 +651,7 @@ REGRAS:
     const distanceKm = getDistanceKm(userData);
     const strategy = raw?.strategy || {};
     const fallbackStrategy = fallback.strategy;
+    const goalContext = getGoalContext(userData);
 
     const taperWeeks = clamp(
       Number(strategy.taperWeeks || fallbackStrategy.taperWeeks),
@@ -621,6 +687,11 @@ REGRAS:
     const legacyProfile = raw?.profile || {};
     const riskLevel = rawAnalysis.riskLevel || legacyProfile.riskLevel || fallback.athleteAnalysis.riskLevel;
     const detectedLevel = rawAnalysis.detectedLevel || legacyProfile.fitnessLevel || fallback.athleteAnalysis.detectedLevel;
+
+    if (goalContext.type === 'endurance_goal') {
+      peakWeeklyKm = Math.round(peakWeeklyKm * goalContext.volumeFactor);
+      peakLongRunKm = Math.round(peakLongRunKm * goalContext.longRunFactor);
+    }
 
     if (riskLevel === 'alto') {
       peakWeeklyKm = Math.round(peakWeeklyKm * 0.92);
@@ -671,7 +742,10 @@ REGRAS:
         : fallback.warnings,
       engineCalibration: {
         ...fallback.engineCalibration,
-        ...(raw?.engineCalibration || {})
+        ...(raw?.engineCalibration || {}),
+        progressionStyle: goalContext.type === 'endurance_goal' ? 'conservadora' : ((raw?.engineCalibration || {}).progressionStyle || fallback.engineCalibration.progressionStyle),
+        recoveryPriority: goalContext.type === 'endurance_goal' ? 'alta' : ((raw?.engineCalibration || {}).recoveryPriority || fallback.engineCalibration.recoveryPriority),
+        intensityBias: goalContext.type === 'endurance_goal' ? 'baixo' : ((raw?.engineCalibration || {}).intensityBias || fallback.engineCalibration.intensityBias)
       },
       source
     };
@@ -798,7 +872,7 @@ REGRAS:
     return slots.slice(0, days);
   }
 
-  function getWorkoutTemplate(phase, index, daysPerWeek, isRecovery, isRaceWeek, isLastWorkout) {
+  function getWorkoutTemplate(phase, index, daysPerWeek, isRecovery, isRaceWeek, isLastWorkout, blueprint = null) {
     if (isRaceWeek && isLastWorkout) {
       return { dayType: 'Longão', title: 'Prova alvo', desc: 'Executar prova com estratégia de ritmo controlada.' };
     }
@@ -812,7 +886,11 @@ REGRAS:
       return recovery[Math.min(index, recovery.length - 1)];
     }
 
-    const middleQuality = phase === 'Base'
+    const lowIntensity = blueprint?.engineCalibration?.intensityBias === 'baixo';
+
+    const middleQuality = lowIntensity
+      ? { dayType: 'Base', title: 'Base controlada', desc: 'Rodagem orientada à resistência, sem forçar ritmo.' }
+      : phase === 'Base'
       ? { dayType: 'Qualidade', title: 'Fartlek técnico', desc: 'Variação de ritmo com blocos controlados e recuperação ativa.' }
       : phase === 'Resistência'
         ? { dayType: 'Intervalado', title: 'Tiros controlados', desc: 'Repetições fortes com recuperação planejada.' }
@@ -1073,10 +1151,11 @@ REGRAS:
         ]);
       }
 
+      const lowIntensity = blueprint?.engineCalibration?.intensityBias === 'baixo';
       return buildSimpleZonePrescription([
         `${formatKmValue(warm)} em Z1`,
         `${formatKmValue(main)} em Z2`,
-        `${formatKmValue(final)} em Z3 se estiver bem`
+        `${formatKmValue(final)} em ${lowIntensity ? 'Z2' : 'Z3 se estiver bem'}`
       ]);
     }
 
@@ -1137,7 +1216,7 @@ REGRAS:
 
     const workouts = dayNames.map((dayOfWeek, index) => {
       const isLastWorkout = index === dayNames.length - 1;
-      const template = getWorkoutTemplate(targets.phase, index, daysPerWeek, targets.off, isRaceWeek, isLastWorkout);
+      const template = getWorkoutTemplate(targets.phase, index, daysPerWeek, targets.off, isRaceWeek, isLastWorkout, blueprint);
       const zoneTarget = isRaceWeek && isLastWorkout
         ? (blueprint.paceZones?.racePace || 'Z3')
         : paceForWorkout(template.dayType, blueprint);

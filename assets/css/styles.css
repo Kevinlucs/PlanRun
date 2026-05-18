@@ -9155,3 +9155,53 @@ body.profile-fullscreen-mode .page.active,
 .settings-mini-btn * {
   color: #000000 !important;
 }
+
+
+/* ===== V81 FORM + PREVIEW POLISH ===== */
+
+/* Prévia: mais respiro entre os botões finais */
+.plan-preview-page .ai-result-actions {
+  gap: 18px !important;
+  margin-top: 26px !important;
+  padding-top: 18px !important;
+  padding-bottom: 10px !important;
+}
+
+.plan-preview-page .ai-result-actions .btn-generate,
+.plan-preview-page .ai-result-actions .ai-btn-full {
+  margin: 0 !important;
+}
+
+/* Terreno: nenhum card parece selecionado sem radio checked */
+.terrain-option input:not(:checked) + .terrain-card {
+  background: rgba(255,255,255,0.045) !important;
+  border-color: rgba(255,255,255,0.10) !important;
+  box-shadow: none !important;
+}
+
+.terrain-option input:not(:checked) + .terrain-card strong,
+.terrain-option input:not(:checked) + .terrain-card b {
+  color: #ffffff !important;
+}
+
+.terrain-option input:checked + .terrain-card {
+  background: rgba(204,255,0,0.12) !important;
+  border-color: #CCFF00 !important;
+  box-shadow: 0 0 0 1px rgba(204,255,0,0.22), 0 16px 34px rgba(204,255,0,0.08) !important;
+}
+
+.terrain-option input:checked + .terrain-card strong,
+.terrain-option input:checked + .terrain-card b {
+  color: #CCFF00 !important;
+}
+
+/* Caixas de tempo com foco mais limpo */
+.ai-time-history-group .ai-checkline {
+  transition: border-color .2s ease, background .2s ease;
+}
+
+.ai-time-history-group .ai-checkline:has(input:checked) {
+  border-color: rgba(204,255,0,.75) !important;
+  background: rgba(204,255,0,.10) !important;
+  color: #CCFF00 !important;
+}

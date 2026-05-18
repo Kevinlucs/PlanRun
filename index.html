@@ -746,7 +746,7 @@
                             <label class="ai-label">Terreno principal dos treinos</label>
                             <div class="terrain-options">
                                 <label class="terrain-option">
-                                    <input type="radio" name="ai-terrain" value="plano" checked>
+                                    <input type="radio" name="ai-terrain" value="plano">
                                     <span class="terrain-card">
                                         <strong>Plano</strong>
                                         <small>Baixa elevação • até 5 m/km</small>
@@ -812,12 +812,12 @@
                         <div class="ai-form-row">
                             <div class="ai-form-group ai-time-history-group">
                                 <label class="ai-label">5K</label>
-                                <input type="text" id="ai-time5k" class="ai-input time-input" inputmode="numeric" placeholder="25:00" oninput="autoFormatTimeInput(this, false)">
+                                <input type="text" id="ai-time5k" class="ai-input time-input" inputmode="numeric" placeholder="25:00" oninput="autoFormatTimeInput(this, true)">
                                 <label class="ai-checkline"><input type="checkbox" id="ai-no-5k" onchange="toggleTimeHistoryInput('5k')"> Ainda não corri 5K</label>
                             </div>
                             <div class="ai-form-group ai-time-history-group">
                                 <label class="ai-label">10K</label>
-                                <input type="text" id="ai-time10k" class="ai-input time-input" inputmode="numeric" placeholder="52:00" oninput="autoFormatTimeInput(this, false)">
+                                <input type="text" id="ai-time10k" class="ai-input time-input" inputmode="numeric" placeholder="52:00" oninput="autoFormatTimeInput(this, true)">
                                 <label class="ai-checkline"><input type="checkbox" id="ai-no-10k" onchange="toggleTimeHistoryInput('10k')"> Ainda não corri 10K</label>
                             </div>
                         </div>

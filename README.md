@@ -874,3 +874,16 @@ O dashboard usa os dados reais do plano ativo, status dos treinos, feedbacks e c
 - Botão “Adicionar” em Tênis padronizado.
 - Adicionado gesto horizontal no mobile/PWA para voltar nas telas do Perfil.
 - Cache atualizado para `runevo-v80`.
+
+
+## RunEvo v81 - IA Evo mais contextual e formulário corrigido
+
+- Prévia da planilha: aumentado o espaçamento entre “Adotar esta Planilha” e “Gerar outra Planilha”.
+- Terreno principal não vem mais pré-selecionado; seleção é obrigatória.
+- Card de terreno só fica verde quando o atleta selecionar.
+- Tempos anteriores de 5K/10K/21K/42K aceitam formato MM:SS ou H:MM:SS.
+- Limite máximo dos tempos anteriores ajustado para 8:00:00.
+- Validação bloqueia tempos inválidos com minutos/segundos acima de 59.
+- Motor Evo agora interpreta melhor objetivo + distância + teste de 3km.
+- Se o teste de 3km for forte, mas o objetivo for completar prova longa em pace conservador, o Motor Evo prioriza resistência, Z1/Z2, longões e progressão conservadora.
+- Cache atualizado para `runevo-v81`.
