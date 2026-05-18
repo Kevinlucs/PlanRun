@@ -1,4 +1,4 @@
-const RunEvo_BUILD_VERSION = 'v74-tour-plan-home';
+const RunEvo_BUILD_VERSION = 'v88-tour-first-plan-flow';
 console.info('RunEvo build carregado:', RunEvo_BUILD_VERSION);
 
 // ===== DADOS DOS TREINOS =====
@@ -5861,36 +5861,57 @@ function finishLogin(user) {
 
 
 // ===== FIRST LOGIN TOUR =====
+let RunEvo_TOUR_REPLAY_MODE = false;
+
 const RunEvo_TOUR_STEPS = [
   {
     page: 'home',
     icon: '👋',
     title: 'Bem-vindo ao RunEvo',
-    text: 'Aqui você acompanha a semana atual, registra treinos e libera check-ins. O RunEvo transforma o plano em execução diária.'
+    eyebrow: 'Primeiro acesso',
+    text: 'O RunEvo transforma sua meta em uma rotina de corrida clara: treinos, check-ins, estatísticas e evolução em um só lugar.'
   },
   {
     page: 'ai',
-    icon: '🤖',
-    title: 'IA Evo',
-    text: 'A IA Evo foi treinada para gerar uma planilha personalizada com base nas suas métricas, histórico, objetivo, datas e nível atual. Quanto melhores os dados, mais precisa fica a estratégia.'
+    icon: '🧠',
+    title: 'IA Evo e Motor Evo',
+    eyebrow: 'Planilha inteligente',
+    text: 'A IA Evo lê suas métricas, histórico, objetivo e terreno. O Motor Evo valida volumes, longões e distribuição antes de liberar a planilha.'
+  },
+  {
+    page: 'ai',
+    icon: '⚡',
+    title: 'Teste de 3km',
+    eyebrow: 'Zonas personalizadas',
+    text: 'O teste de 3km ajuda a calcular suas zonas. Ele mostra potencial, mas o plano também respeita sua prova, prazo e objetivo.'
   },
   {
     page: 'phases',
-    icon: '📄',
-    title: 'Treinos',
-    text: 'A aba Treinos organiza as fases da planilha e também concentra exportação, PDF, XLS e backup.'
+    icon: '🎯',
+    title: 'Cada treino tem função',
+    eyebrow: 'Execução simples',
+    text: 'Rodagens, longões, fartlek, intervalados e regenerativos entram conforme a necessidade. O app mostra o que fazer e em qual zona.'
+  },
+  {
+    page: 'home',
+    icon: '🔁',
+    title: 'Check-in semanal',
+    eyebrow: 'Adaptive Training',
+    text: 'Ao concluir ou pular treinos, o check-in libera uma leitura da semana. A IA usa esse feedback para ajustar a evolução com mais segurança.'
   },
   {
     page: 'stats',
     icon: '📊',
-    title: 'Estatísticas',
-    text: 'Aqui você acompanha evolução, aderência, volume realizado, esforço médio e os ajustes inteligentes do Adaptive Training.'
+    title: 'Acompanhe sua evolução',
+    eyebrow: 'Dados do atleta',
+    text: 'Veja aderência, volume realizado, ajustes, progresso e histórico. No Perfil você também acompanha tênis, preferências e suporte.'
   },
   {
-    page: 'settings',
-    icon: '👤',
-    title: 'Perfil',
-    text: 'No Perfil você atualiza nome e foto. O peso é solicitado no check-in a cada 4 semanas para recalcular IMC e melhorar a análise da IA.'
+    page: 'ai',
+    icon: '🚀',
+    title: 'Agora gere sua planilha',
+    eyebrow: 'Próximo passo obrigatório',
+    text: 'Depois do tour, você será levado para a IA Evo. Preencha os dados, revise a prévia e adote a planilha para liberar a tela inicial completa.'
   }
 ];
 
@@ -5906,13 +5927,15 @@ function renderTourStep(index = 0) {
   showPage(step.page);
 
   const isLast = index === RunEvo_TOUR_STEPS.length - 1;
+  const firstAccess = !RunEvo_TOUR_REPLAY_MODE;
 
   document.getElementById('modal-icon').textContent = step.icon;
   document.getElementById('modal-title').textContent = step.title;
   document.getElementById('modal-message').innerHTML = `
-    <div class="tour-card">
+    <div class="tour-card tour-card-v88">
+      <span class="tour-eyebrow">${escapeHTML(step.eyebrow || 'RunEvo')}</span>
       <p>${escapeHTML(step.text)}</p>
-      <div class="tour-progress">
+      <div class="tour-progress" aria-label="Progresso do tour">
         ${RunEvo_TOUR_STEPS.map((_, i) => `<span class="${i === index ? 'active' : ''}"></span>`).join('')}
       </div>
       <small>Passo ${index + 1} de ${RunEvo_TOUR_STEPS.length}</small>
@@ -5925,11 +5948,11 @@ function renderTourStep(index = 0) {
   cancelBtn.classList.remove('hidden');
   cancelBtn.disabled = false;
   cancelBtn.dataset.action = '';
-  cancelBtn.textContent = 'Pular';
+  cancelBtn.textContent = firstAccess ? 'Ir para IA Evo' : 'Fechar';
 
   confirmBtn.disabled = false;
   confirmBtn.dataset.action = '';
-  confirmBtn.textContent = isLast ? 'Gerar planilha' : 'Próximo';
+  confirmBtn.textContent = isLast ? (firstAccess ? 'Começar planilha' : 'Concluir tour') : 'Próximo';
 
   cancelBtn.onclick = () => finishOnboardingTour();
   confirmBtn.onclick = () => {
@@ -5945,9 +5968,13 @@ function finishOnboardingTour() {
   document.getElementById('modal-overlay').classList.add('hidden');
   pageHistory.length = 0;
 
-  if (shouldForcePlanSetup()) {
+  const mustCreatePlan = shouldForcePlanSetup();
+
+  RunEvo_TOUR_REPLAY_MODE = false;
+
+  if (mustCreatePlan) {
     goToMandatoryPlanSetup();
-    showToast('Vamos gerar sua primeira planilha no IA Evo.', 'info');
+    showToast('Agora preencha seus dados para gerar a primeira planilha.', 'info');
     return;
   }
 
@@ -5956,7 +5983,9 @@ function finishOnboardingTour() {
 }
 
 
-function startOnboardingTourFromBeginning() {
+function startOnboardingTourFromBeginning({ replay = true } = {}) {
+  RunEvo_TOUR_REPLAY_MODE = Boolean(replay);
+
   const modal = document.getElementById('modal-overlay');
   const confirmBtn = document.getElementById('modal-confirm');
   const cancelBtn = document.getElementById('modal-cancel');
@@ -5975,7 +6004,6 @@ function startOnboardingTourFromBeginning() {
 
   if (modal) modal.classList.add('hidden');
 
-  // Dá um ciclo ao navegador para fechar o modal de confirmação antes de abrir o tour.
   requestAnimationFrame(() => {
     setTimeout(() => {
       try {
@@ -5994,7 +6022,7 @@ function replayOnboardingTour(event) {
     event.stopPropagation();
   }
 
-  startOnboardingTourFromBeginning();
+  startOnboardingTourFromBeginning({ replay: true });
 }
 
 function confirmReplayTour(event) {
@@ -6007,7 +6035,7 @@ function confirmReplayTour(event) {
   document.getElementById('modal-title').textContent = 'Rever tour do RunEvo?';
   document.getElementById('modal-message').innerHTML = `
     <div class="tour-card">
-      <p>Deseja rever a apresentação rápida do app? O tour mostra como usar Início, IA Evo, Treinos, Estatísticas e Perfil.</p>
+      <p>Deseja rever a apresentação rápida do app? O tour explica IA Evo, zonas, check-ins, estatísticas e o fluxo para gerar planilha.</p>
     </div>
   `;
 
@@ -6039,7 +6067,7 @@ document.addEventListener('click', (event) => {
   event.stopPropagation();
   event.stopImmediatePropagation();
 
-  startOnboardingTourFromBeginning();
+  startOnboardingTourFromBeginning({ replay: true });
 }, true);
 
 
@@ -6051,6 +6079,7 @@ function maybeStartOnboardingTour() {
     return;
   }
 
+  RunEvo_TOUR_REPLAY_MODE = false;
   setTimeout(() => renderTourStep(0), 650);
 }
 

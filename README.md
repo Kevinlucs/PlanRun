@@ -977,3 +977,21 @@ O dashboard usa os dados reais do plano ativo, status dos treinos, feedbacks e c
 - Alertas foram encurtados sem deixar sensação de texto cortado.
 - CSS ajustado para não aplicar aparência de truncamento nos cards.
 - Cache atualizado para `runevo-v87`.
+
+
+## RunEvo v88 - tour melhorado e fluxo obrigatório até IA Evo
+
+- Tour do primeiro acesso reescrito com 7 passos:
+  - boas-vindas
+  - IA Evo/Motor Evo
+  - teste de 3km e zonas
+  - função de cada treino
+  - check-in semanal
+  - estatísticas/perfil
+  - geração obrigatória da planilha
+- Ao finalizar ou pular o tour no primeiro acesso, o atleta vai para IA Evo.
+- Se o usuário já viu o tour, mas ainda não tem planilha adotada, o app também força IA Evo.
+- Somente após adotar a planilha o fluxo segue para Início.
+- Tour em Perfil > Minhas preferências > Suporte > Aplicativo continua funcionando como replay.
+- Corrigido resíduo de comentário/caractere antes da página IA Evo.
+- Cache atualizado para `runevo-v88`.

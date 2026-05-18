@@ -9303,3 +9303,61 @@ body.profile-fullscreen-mode .page.active,
 .coach-strength-grid > div {
   min-height: auto !important;
 }
+
+
+/* ===== V88 TOUR + FIRST PLAN FLOW ===== */
+.tour-card-v88 {
+  text-align: left;
+}
+
+.tour-card-v88 .tour-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-bottom: 10px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: rgba(204, 255, 0, 0.10);
+  border: 1px solid rgba(204, 255, 0, 0.25);
+  color: #CCFF00;
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.tour-card-v88 p {
+  margin: 0 0 18px;
+  line-height: 1.55;
+}
+
+.tour-progress {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 14px 0 8px;
+}
+
+.tour-progress span {
+  flex: 1;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.12);
+}
+
+.tour-progress span.active {
+  background: #CCFF00;
+  box-shadow: 0 0 16px rgba(204,255,0,.35);
+}
+
+.tour-card-v88 small {
+  display: block;
+  color: rgba(255,255,255,.58);
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+
+#modal-overlay #modal-confirm[data-action="start-tour"],
+#modal-overlay #modal-confirm {
+  font-weight: 950;
+}
